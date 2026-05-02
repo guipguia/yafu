@@ -168,3 +168,13 @@ type TreeResponse struct {
 	Nodes []TreeNode `json:"nodes"`
 	Note  string     `json:"note,omitempty"`
 }
+
+// ManifestResponse is the top-level shape of
+// GET /api/v1/applications/{...}/manifest. YAML is the live object on the
+// cluster with server-side noise (managedFields, uid, resourceVersion)
+// stripped so it's diff-friendly.
+type ManifestResponse struct {
+	AppID string `json:"appId"`
+	Kind  string `json:"kind"`
+	YAML  string `json:"yaml"`
+}

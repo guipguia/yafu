@@ -159,6 +159,12 @@ export interface TreeResponse {
   note?: string
 }
 
+export interface ManifestResponse {
+  appId: string
+  kind: string
+  yaml: string
+}
+
 // ---------- Drawer placeholder types (mock until v0.2 wires real data) ----------
 
 export type EventKind = 'ok' | 'warn' | 'err'

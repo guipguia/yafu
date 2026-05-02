@@ -7,6 +7,7 @@ import type {
   AppHistoryResponse,
   ClustersResponse,
   EventsResponse,
+  ManifestResponse,
   SourcesResponse,
   TreeResponse,
 } from './types'
@@ -62,6 +63,18 @@ export function useEvents(clusterId?: string) {
     queryKey: ['events', clusterId ?? 'all'],
     queryFn: () => fetchJSON<EventsResponse>(path),
     refetchInterval: POLL_MS,
+  })
+}
+
+export function useAppManifest(app: Application | null) {
+  const path = app
+    ? `/api/v1/applications/${[app.clusterId, app.ns, app.kind, app.name].map(encodeURIComponent).join('/')}/manifest`
+    : ''
+  return useQuery<ManifestResponse>({
+    queryKey: ['manifest', app?.id ?? ''],
+    queryFn: () => fetchJSON<ManifestResponse>(path),
+    refetchInterval: POLL_MS,
+    enabled: app != null,
   })
 }
 

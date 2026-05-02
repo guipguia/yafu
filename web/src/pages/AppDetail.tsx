@@ -3,6 +3,7 @@ import type { Application } from '@/lib/types'
 import {
   useAppEvents,
   useAppHistory,
+  useAppManifest,
   useAppTree,
   useReconcileApp,
   useResumeApp,
@@ -135,9 +136,7 @@ export function AppDetailDrawer({ app, onClose }: Props) {
             <div style={{ padding: 18 }}><ComingSoon feature="Live log tail" /></div>
           )}
           {tab === 'history' && <HistoryTab app={app} />}
-          {tab === 'yaml' && (
-            <div style={{ padding: 18 }}><ComingSoon feature="Rendered & source manifests" /></div>
-          )}
+          {tab === 'yaml' && <ManifestTab app={app} />}
         </div>
       </div>
     </>
@@ -194,6 +193,62 @@ function OverviewTab({ app }: { app: Application }) {
             )}
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function ManifestTab({ app }: { app: Application }) {
+  const { data, isLoading, error } = useAppManifest(app)
+  const yamlText = data?.yaml ?? ''
+
+  return (
+    <div style={{ padding: 18 }}>
+      <div className="panel">
+        <div className="panel-head">
+          <div className="panel-title">
+            <span className="lab">YAML</span>
+            {app.kind} · live state
+          </div>
+          <div className="panel-actions">
+            <button
+              className="icon-btn"
+              title="Copy"
+              disabled={!yamlText}
+              onClick={() => {
+                if (yamlText) {
+                  void navigator.clipboard.writeText(yamlText)
+                }
+              }}
+            >
+              <Ic.copy />
+            </button>
+          </div>
+        </div>
+        {isLoading && !yamlText && <LoadingState label="Loading manifest…" />}
+        {error && <ErrorState message={error.message} />}
+        {!isLoading && !error && !yamlText && (
+          <EmptyState title="No manifest" hint="The resource exists but produced no YAML." />
+        )}
+        {yamlText && (
+          <pre
+            style={{
+              margin: 0,
+              padding: 14,
+              fontFamily: 'var(--font-mono)',
+              fontSize: 11.5,
+              lineHeight: 1.7,
+              color: 'var(--ink-2)',
+              background: 'var(--bg-2)',
+              maxHeight: 540,
+              overflow: 'auto',
+              whiteSpace: 'pre',
+              borderTop: '1px solid var(--line)',
+            }}
+          >
+            {yamlText}
+          </pre>
+        )}
       </div>
     </div>
   )
