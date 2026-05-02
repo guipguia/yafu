@@ -221,6 +221,75 @@ export interface DiffResponse {
   note?: string
 }
 
+// ---------- True Git-vs-cluster render diff ----------
+// Returned by GET /api/v1/applications/{...}/render. The backend
+// renders the application's Source (kustomize build / helm template)
+// at the current revision, fetches the live counterpart from the
+// cluster, and emits one Resource per rendered object plus any
+// extras found on the cluster but not in source.
+
+export type RenderResourceStatus =
+  | 'in-sync'
+  | 'drifted'
+  | 'missing-on-cluster'
+  | 'extra-on-cluster'
+  | 'render-error'
+
+export type RenderLineKind = 'context' | 'add' | 'del' | 'empty'
+
+export interface RenderLine {
+  kind: RenderLineKind
+  /** 1-based line number in the desired (Git) YAML. Absent for added lines. */
+  desiredLn?: number
+  /** 1-based line number in the live (cluster) YAML. Absent for deleted lines. */
+  liveLn?: number
+  /** Single line of YAML, sans trailing newline. Empty for kind="empty". */
+  text: string
+}
+
+export interface RenderHunk {
+  /** Short human label like "spec.replicas, spec.template.spec.containers[0]". */
+  label: string
+  lines: RenderLine[]
+}
+
+export interface RenderResource {
+  group?: string
+  version?: string
+  kind: string
+  ns?: string
+  name: string
+  status: RenderResourceStatus
+  /** Hunks are empty when status is "in-sync" or "missing-on-cluster". */
+  hunks?: RenderHunk[]
+  /** Stderr from kustomize build / helm template when status is "render-error". */
+  renderError?: string
+  /** Operation Flux would perform on next reconcile: "create" | "update" | "delete". */
+  reconcileWould?: string
+}
+
+export interface RenderResponse {
+  appId: string
+  /** Source ref + revision the render was built from. */
+  source: {
+    name: string
+    namespace: string
+    /** GitRepository | HelmRepository | OCIRepository | Bucket */
+    kind: string
+    /** Branch/tag/semver constraint, when present. */
+    ref?: string
+    /** Resolved revision (commit SHA / chart version). */
+    revision: string
+    /** "kustomize build" | "helm template" */
+    method: string
+  }
+  /** RFC3339 timestamp of when the render finished. */
+  renderedAt: string
+  resources: RenderResource[]
+  /** Top-level error when the entire render failed (vs per-resource render-error). */
+  error?: string
+}
+
 export interface PodInfo {
   ns: string
   name: string

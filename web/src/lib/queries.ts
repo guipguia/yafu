@@ -12,6 +12,7 @@ import type {
   ImageUpdatesResponse,
   LogsResponse,
   ManifestResponse,
+  RenderResponse,
   SourcesResponse,
   TreeResponse,
   WhoamiResponse,
@@ -119,6 +120,25 @@ export function useAppDiff(app: Application | null) {
     queryFn: () => fetchJSON<DiffResponse>(path),
     refetchInterval: POLL_MS,
     enabled: app != null,
+  })
+}
+
+// useAppRender hits the rendered Git-vs-cluster diff endpoint. The
+// backend is not yet implemented (504/404 expected); the Diff tab
+// shows mock data with a "Preview" banner until the render path
+// lands. Once the backend ships, this hook starts returning real
+// data with no frontend changes.
+export function useAppRender(app: Application | null, enabled = true) {
+  const path = app
+    ? `/api/v1/applications/${[app.clusterId, app.ns, app.kind, app.name].map(encodeURIComponent).join('/')}/render`
+    : ''
+  return useQuery<RenderResponse>({
+    queryKey: ['render', app?.id ?? ''],
+    queryFn: () => fetchJSON<RenderResponse>(path),
+    // Slower cadence than other tabs — rendering source is expensive.
+    refetchInterval: 30_000,
+    enabled: app != null && enabled,
+    retry: false,
   })
 }
 
