@@ -2,11 +2,12 @@
 # using yafu's own ServiceAccount credentials. This is the simplest
 # CRD-mode setup and mirrors what a real production deployment for a
 # single-cluster install would look like.
+#
+# Cluster is a CLUSTER-SCOPED resource — do not set metadata.namespace.
 apiVersion: yafu.io/v1alpha1
 kind: Cluster
 metadata:
   name: home
-  namespace: yafu-system
 spec:
   displayName: kind-yafu-test
   region: 'local · kind'
