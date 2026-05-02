@@ -11,11 +11,18 @@ type Deps struct {
 	Registry cluster.Registry
 }
 
-// Register mounts API routes on mux.
-func Register(mux *http.ServeMux, deps Deps) {
+// RegisterPublic mounts unauthenticated routes — kubelet probes,
+// readiness, etc. /metrics is mounted by the server itself.
+func RegisterPublic(mux *http.ServeMux) {
 	mux.HandleFunc("GET /healthz", handleHealthz)
 	mux.HandleFunc("GET /readyz", handleReadyz)
+}
+
+// RegisterAPI mounts authenticated routes under /api/v1/*. The caller is
+// responsible for fronting these with the auth middleware.
+func RegisterAPI(mux *http.ServeMux, deps Deps) {
 	mux.HandleFunc("GET /api/v1/version", handleVersion)
+	mux.HandleFunc("GET /api/v1/whoami", handleWhoami)
 	mux.HandleFunc("GET /api/v1/stream", handleStream)
 
 	ch := &clustersHandler{registry: deps.Registry}

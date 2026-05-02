@@ -10,6 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/guipguia/yafu/internal/api"
+	"github.com/guipguia/yafu/internal/auth"
 	"github.com/guipguia/yafu/internal/cluster"
 	"github.com/guipguia/yafu/internal/web"
 )
@@ -18,6 +19,10 @@ type Config struct {
 	Addr     string
 	Logger   *slog.Logger
 	Registry cluster.Registry
+
+	// Auth wraps the /api/* sub-mux. Required — without an explicit
+	// middleware the server panics rather than serve the API open.
+	Auth auth.Middleware
 }
 
 type Server struct {
@@ -29,11 +34,21 @@ func New(cfg Config) *Server {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
+	if cfg.Auth == nil {
+		panic("server.New: Config.Auth is required")
+	}
 
 	mux := http.NewServeMux()
+
+	// Public routes — kubelet probes, prometheus scrape, embedded UI bundle.
 	mux.Handle("GET /metrics", promhttp.Handler())
-	api.Register(mux, api.Deps{Registry: cfg.Registry})
+	api.RegisterPublic(mux)
 	web.Register(mux)
+
+	// Authenticated API routes mounted on a sub-mux behind cfg.Auth.
+	apiMux := http.NewServeMux()
+	api.RegisterAPI(apiMux, api.Deps{Registry: cfg.Registry})
+	mux.Handle("/api/", cfg.Auth(apiMux))
 
 	handler := chain(mux,
 		withRequestID(),

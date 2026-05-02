@@ -22,6 +22,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	yafuv1alpha1 "github.com/guipguia/yafu/api/v1alpha1"
+	"github.com/guipguia/yafu/internal/auth"
 	"github.com/guipguia/yafu/internal/cluster"
 	"github.com/guipguia/yafu/internal/controllers"
 	"github.com/guipguia/yafu/internal/metrics"
@@ -40,6 +41,8 @@ func main() {
 		ownNamespace = flag.String("namespace", envOr("POD_NAMESPACE", "yafu-system"), "yafu's own namespace; used to resolve Secret refs without an explicit namespace")
 		metricsAddr  = flag.String("metrics-addr", ":8081", "controller-runtime metrics listen address (CRD mode only; \"0\" disables)")
 		probeAddr    = flag.String("probe-addr", ":8082", "controller-runtime healthz listen address (CRD mode only; \"0\" disables)")
+
+		authMode = flag.String("auth-mode", "anonymous", "request authentication: 'anonymous' (dev), 'header' (trust X-Forwarded-* from a proxy), or 'oidc' (not yet implemented)")
 	)
 	// --kubeconfig is registered by sigs.k8s.io/controller-runtime/pkg/client/config
 	// via package init(); we read its value after parsing.
@@ -80,10 +83,26 @@ func main() {
 		}()
 	}
 
+	parsedAuthMode, err := auth.ParseMode(*authMode)
+	if err != nil {
+		logger.Error("auth mode", "err", err)
+		os.Exit(1)
+	}
+	authMW, err := auth.New(parsedAuthMode)
+	if err != nil {
+		logger.Error("auth init", "err", err)
+		os.Exit(1)
+	}
+	logger.Info("auth mode", "mode", parsedAuthMode)
+	if parsedAuthMode == auth.ModeAnonymous {
+		logger.Warn("auth mode 'anonymous' allows unauthenticated access — do not use in production")
+	}
+
 	srv := server.New(server.Config{
 		Addr:     *addr,
 		Logger:   logger,
 		Registry: registry,
+		Auth:     authMW,
 	})
 
 	if err := srv.Run(ctx); err != nil && !errors.Is(err, http.ErrServerClosed) {

@@ -1,0 +1,89 @@
+package auth
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"strings"
+)
+
+// Middleware authenticates a request, attaches the resulting Identity to
+// the context, and then calls next. On auth failure it writes the
+// appropriate status code and does NOT call next.
+type Middleware func(http.Handler) http.Handler
+
+// New returns a Middleware for the given Mode.
+func New(mode Mode) (Middleware, error) {
+	switch mode {
+	case ModeAnonymous:
+		return anonymousMiddleware(), nil
+	case ModeHeader:
+		return headerMiddleware(), nil
+	case ModeOIDC:
+		return nil, fmt.Errorf("auth mode %q not implemented yet — track in the enterprise roadmap", mode)
+	default:
+		return nil, fmt.Errorf("unknown auth mode %q", mode)
+	}
+}
+
+// anonymousMiddleware tags every request with a single synthetic identity.
+func anonymousMiddleware() Middleware {
+	id := Identity{
+		Subject: "anonymous",
+		Email:   "anonymous@yafu.local",
+		Name:    "anonymous",
+		Groups:  []string{"system:anonymous"},
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			next.ServeHTTP(w, r.WithContext(WithIdentity(r.Context(), id)))
+		})
+	}
+}
+
+// headerMiddleware reads X-Forwarded-User (required), X-Forwarded-Email,
+// X-Forwarded-Preferred-Username, and X-Forwarded-Groups (comma-separated)
+// from the incoming request. Requests without X-Forwarded-User are rejected
+// with 401 — the proxy is responsible for ensuring the header is present
+// for authenticated traffic.
+func headerMiddleware() Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			user := strings.TrimSpace(r.Header.Get("X-Forwarded-User"))
+			if user == "" {
+				writeUnauthorized(w, "missing X-Forwarded-User header (proxy not configured?)")
+				return
+			}
+			id := Identity{
+				Subject: user,
+				Email:   strings.TrimSpace(r.Header.Get("X-Forwarded-Email")),
+				Name:    strings.TrimSpace(r.Header.Get("X-Forwarded-Preferred-Username")),
+				Groups:  splitGroups(r.Header.Get("X-Forwarded-Groups")),
+			}
+			if id.Name == "" {
+				id.Name = id.Subject
+			}
+			next.ServeHTTP(w, r.WithContext(WithIdentity(r.Context(), id)))
+		})
+	}
+}
+
+func splitGroups(raw string) []string {
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if g := strings.TrimSpace(p); g != "" {
+			out = append(out, g)
+		}
+	}
+	return out
+}
+
+func writeUnauthorized(w http.ResponseWriter, msg string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusUnauthorized)
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}
