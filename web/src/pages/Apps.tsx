@@ -63,10 +63,7 @@ export function AppsPage({ onOpen }: Props) {
     ['HelmRelease', 'HelmRelease'],
   ] as const
 
-  const clusterOpts = [
-    ['all', 'All'] as const,
-    ...clusters.map((c) => [c.id, c.name] as const),
-  ]
+  const clusterOpts = [['all', 'All'] as const, ...clusters.map((c) => [c.id, c.name] as const)]
 
   return (
     <>
@@ -78,10 +75,14 @@ export function AppsPage({ onOpen }: Props) {
               {apps.length} total · {fail} failing · {susp} suspended
             </span>
           </h1>
-          <div className="page-sub">Kustomizations and HelmReleases across all registered clusters.</div>
+          <div className="page-sub">
+            Kustomizations and HelmReleases across all registered clusters.
+          </div>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
-          <button className="btn"><Ic.refresh /> Reconcile selected</button>
+          <button className="btn">
+            <Ic.refresh /> Reconcile selected
+          </button>
           <button className="btn primary">+ New</button>
         </div>
       </div>
@@ -141,7 +142,11 @@ export function AppsPage({ onOpen }: Props) {
             partial fan-out:
           </span>{' '}
           {fanoutErrors.map((e, i) => (
-            <span key={e.cluster} className="mono" style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
+            <span
+              key={e.cluster}
+              className="mono"
+              style={{ fontSize: 11.5, color: 'var(--ink-3)' }}
+            >
               {i > 0 && ' · '}
               {e.cluster}: {e.error}
             </span>
@@ -200,11 +205,15 @@ export function AppsPage({ onOpen }: Props) {
                       className="row-status"
                       style={{
                         background:
-                          a.status === 'failing' ? 'var(--err)' :
-                          a.status === 'degraded' ? 'var(--warn)' :
-                          a.status === 'progressing' ? 'var(--info)' :
-                          a.status === 'paused' ? 'var(--paused)' :
-                          'var(--ok)',
+                          a.status === 'failing'
+                            ? 'var(--err)'
+                            : a.status === 'degraded'
+                              ? 'var(--warn)'
+                              : a.status === 'progressing'
+                                ? 'var(--info)'
+                                : a.status === 'paused'
+                                  ? 'var(--paused)'
+                                  : 'var(--ok)',
                       }}
                     />
                   </td>
@@ -212,20 +221,29 @@ export function AppsPage({ onOpen }: Props) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span className="name">{a.name}</span>
                       {a.suspended && (
-                        <span className="chip paused" style={{ height: 16 }}><Ic.pause /></span>
+                        <span className="chip paused" style={{ height: 16 }}>
+                          <Ic.pause />
+                        </span>
                       )}
                     </div>
                   </td>
-                  <td><KindBadge kind={a.kind} /></td>
+                  <td>
+                    <KindBadge kind={a.kind} />
+                  </td>
                   <td className="ns">{a.ns}</td>
-                  <td className="mono" style={{ fontSize: 11.5 }}>{a.cluster}</td>
-                  <td><StatusChip status={a.sync} /></td>
+                  <td className="mono" style={{ fontSize: 11.5 }}>
+                    {a.cluster}
+                  </td>
+                  <td>
+                    <StatusChip status={a.sync} />
+                  </td>
                   <td>
                     <span className="mono" style={{ fontSize: 11.5 }}>
                       {a.source || '—'}
                       {a.revision && (
                         <>
-                          {' '}<span style={{ color: 'var(--ink-4)' }}>·</span>{' '}
+                          {' '}
+                          <span style={{ color: 'var(--ink-4)' }}>·</span>{' '}
                           <span style={{ color: 'var(--accent-ink)' }}>{a.revision}</span>
                         </>
                       )}

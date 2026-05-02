@@ -1,9 +1,4 @@
-import {
-  useSources,
-  useReconcileSource,
-  useResumeSource,
-  useSuspendSource,
-} from '@/lib/queries'
+import { useSources, useReconcileSource, useResumeSource, useSuspendSource } from '@/lib/queries'
 import { KindBadge } from '@/components/KindBadge'
 import { EmptyState, ErrorState, LoadingState } from '@/components/States'
 import { Ic } from '@/components/Icons'
@@ -84,7 +79,8 @@ export function SourcesPage() {
               Healthy
             </div>
             <div className="mono" style={{ fontSize: 22, fontWeight: 600, marginTop: 6 }}>
-              {healthy} <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>/ {sources.length}</span>
+              {healthy}{' '}
+              <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>/ {sources.length}</span>
             </div>
             <div className="mono" style={{ display: 'flex', gap: 14, marginTop: 8, fontSize: 11 }}>
               {Object.entries(byKind).map(([k, n]) => (
@@ -106,10 +102,16 @@ export function SourcesPage() {
             >
               Failing fetches
             </div>
-            <div className="mono" style={{ fontSize: 22, fontWeight: 600, marginTop: 6 }}>{failing}</div>
+            <div className="mono" style={{ fontSize: 22, fontWeight: 600, marginTop: 6 }}>
+              {failing}
+            </div>
             {failing > 0 && (
               <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ink-3)' }}>
-                {sources.filter((s) => s.status === 'failing').slice(0, 3).map((s) => s.name).join(' · ')}
+                {sources
+                  .filter((s) => s.status === 'failing')
+                  .slice(0, 3)
+                  .map((s) => s.name)
+                  .join(' · ')}
               </div>
             )}
           </div>
@@ -141,7 +143,11 @@ export function SourcesPage() {
             partial fan-out:
           </span>{' '}
           {fanoutErrors.map((e, i) => (
-            <span key={e.cluster} className="mono" style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
+            <span
+              key={e.cluster}
+              className="mono"
+              style={{ fontSize: 11.5, color: 'var(--ink-3)' }}
+            >
               {i > 0 && ' · '}
               {e.cluster}: {e.error}
             </span>
@@ -188,19 +194,27 @@ export function SourcesPage() {
                         className="row-status"
                         style={{
                           background:
-                            s.status === 'failing' ? 'var(--err)' :
-                            s.status === 'degraded' ? 'var(--warn)' :
-                            s.status === 'progressing' ? 'var(--info)' :
-                            s.status === 'paused' ? 'var(--paused)' :
-                            'var(--ok)',
+                            s.status === 'failing'
+                              ? 'var(--err)'
+                              : s.status === 'degraded'
+                                ? 'var(--warn)'
+                                : s.status === 'progressing'
+                                  ? 'var(--info)'
+                                  : s.status === 'paused'
+                                    ? 'var(--paused)'
+                                    : 'var(--ok)',
                         }}
                       />
                     </td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        {s.kind === 'GitRepository' ? <Ic.git /> :
-                          s.kind === 'HelmRepository' ? <Ic.helm /> :
-                          <Ic.oci />}
+                        {s.kind === 'GitRepository' ? (
+                          <Ic.git />
+                        ) : s.kind === 'HelmRepository' ? (
+                          <Ic.helm />
+                        ) : (
+                          <Ic.oci />
+                        )}
                         <span className="name">{s.name}</span>
                         {s.suspended && (
                           <span className="chip paused" style={{ marginLeft: 6 }}>
@@ -209,13 +223,20 @@ export function SourcesPage() {
                         )}
                       </div>
                       {s.status === 'failing' && s.message && (
-                        <div className="mono" style={{ fontSize: 10.5, color: 'var(--err)', marginTop: 2 }}>
+                        <div
+                          className="mono"
+                          style={{ fontSize: 10.5, color: 'var(--err)', marginTop: 2 }}
+                        >
                           {s.message}
                         </div>
                       )}
                     </td>
-                    <td><KindBadge kind={s.kind} /></td>
-                    <td className="mono" style={{ fontSize: 11.5 }}>{s.cluster}</td>
+                    <td>
+                      <KindBadge kind={s.kind} />
+                    </td>
+                    <td className="mono" style={{ fontSize: 11.5 }}>
+                      {s.cluster}
+                    </td>
                     <td
                       className="mono"
                       style={{
@@ -228,9 +249,15 @@ export function SourcesPage() {
                     >
                       {s.url}
                     </td>
-                    <td className="mono" style={{ fontSize: 11.5 }}>{s.ref || '—'}</td>
-                    <td className="mono" style={{ fontSize: 11, color: 'var(--accent-ink)' }}>{s.revision || '—'}</td>
-                    <td className="mono" style={{ fontSize: 11.5 }}>{s.interval || '—'}</td>
+                    <td className="mono" style={{ fontSize: 11.5 }}>
+                      {s.ref || '—'}
+                    </td>
+                    <td className="mono" style={{ fontSize: 11, color: 'var(--accent-ink)' }}>
+                      {s.revision || '—'}
+                    </td>
+                    <td className="mono" style={{ fontSize: 11.5 }}>
+                      {s.interval || '—'}
+                    </td>
                     <td className="ago">{s.age}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>

@@ -1,9 +1,4 @@
-import {
-  useAlerts,
-  useReconcileAlert,
-  useResumeAlert,
-  useSuspendAlert,
-} from '@/lib/queries'
+import { useAlerts, useReconcileAlert, useResumeAlert, useSuspendAlert } from '@/lib/queries'
 import { StatusChip } from '@/components/StatusChip'
 import { EmptyState, ErrorState, LoadingState } from '@/components/States'
 import { Ic } from '@/components/Icons'
@@ -59,7 +54,11 @@ export function AlertsPage() {
             partial fan-out:
           </span>{' '}
           {fanoutErrors.map((e, i) => (
-            <span key={e.cluster} className="mono" style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
+            <span
+              key={e.cluster}
+              className="mono"
+              style={{ fontSize: 11.5, color: 'var(--ink-3)' }}
+            >
               {i > 0 && ' · '}
               {e.cluster}: {e.error}
             </span>
@@ -105,9 +104,11 @@ export function AlertsPage() {
                         className="row-status"
                         style={{
                           background:
-                            a.status === 'paused' ? 'var(--paused)' :
-                            a.severity === 'error' ? 'var(--err)' :
-                            'var(--ok)',
+                            a.status === 'paused'
+                              ? 'var(--paused)'
+                              : a.severity === 'error'
+                                ? 'var(--err)'
+                                : 'var(--ok)',
                         }}
                       />
                     </td>
@@ -117,8 +118,16 @@ export function AlertsPage() {
                         <span className="ns">{a.ns}</span>
                       </div>
                     </td>
-                    <td className="mono" style={{ fontSize: 11.5 }}>{a.cluster}</td>
-                    <td className="mono" style={{ fontSize: 11.5, color: a.provider === 'missing' ? 'var(--err)' : 'var(--ink-2)' }}>
+                    <td className="mono" style={{ fontSize: 11.5 }}>
+                      {a.cluster}
+                    </td>
+                    <td
+                      className="mono"
+                      style={{
+                        fontSize: 11.5,
+                        color: a.provider === 'missing' ? 'var(--err)' : 'var(--ink-2)',
+                      }}
+                    >
                       {a.provider}
                     </td>
                     <td>
@@ -127,8 +136,12 @@ export function AlertsPage() {
                         {a.severity}
                       </span>
                     </td>
-                    <td className="mono" style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>{a.target || '—'}</td>
-                    <td><StatusChip status={a.status === 'paused' ? 'paused' : 'healthy'} /></td>
+                    <td className="mono" style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>
+                      {a.target || '—'}
+                    </td>
+                    <td>
+                      <StatusChip status={a.status === 'paused' ? 'paused' : 'healthy'} />
+                    </td>
                     <td className="ago">{a.age}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>

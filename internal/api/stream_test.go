@@ -2,10 +2,12 @@ package api
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -94,27 +96,61 @@ func TestStream_AllowsEveryClusterWithDefaultPolicy(t *testing.T) {
 
 // --- recorder + helpers ---
 
-// sseRecorder is httptest.ResponseRecorder + http.Flusher. The real
-// recorder doesn't implement Flusher, which streamHandler.serve
-// requires.
+// sseRecorder is a thread-safe ResponseWriter for SSE tests. The
+// stock httptest.ResponseRecorder isn't safe for the pattern these
+// tests use — handler goroutine writes to the body while the test
+// goroutine polls it for assertion strings. We protect the buffer
+// with a mutex and override Body() to return a fresh String snapshot.
+//
+// Also implements http.Flusher because streamHandler.serve requires
+// it on the response writer.
 type sseRecorder struct {
-	*httptest.ResponseRecorder
+	mu      sync.Mutex
+	headers http.Header
+	buf     bytes.Buffer
+	status  int
 }
 
 func newSSERecorder() *sseRecorder {
-	return &sseRecorder{ResponseRecorder: httptest.NewRecorder()}
+	return &sseRecorder{
+		headers: http.Header{},
+		status:  http.StatusOK,
+	}
+}
+
+func (s *sseRecorder) Header() http.Header { return s.headers }
+
+func (s *sseRecorder) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.buf.Write(p)
+}
+
+func (s *sseRecorder) WriteHeader(code int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.status = code
 }
 
 func (s *sseRecorder) Flush() {}
 
-// waitForLine reads body lines until it sees one starting with prefix
-// or the timeout elapses. The recorder buffer is shared with the
-// running goroutine; we sleep-and-poll rather than block on read.
+// Body returns the current accumulated body as a string. Safe to
+// call from any goroutine.
+func (s *sseRecorder) Body() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.buf.String()
+}
+
+// waitForLine polls the recorder body until a line starting with
+// prefix appears or the timeout elapses. Sleep-and-poll because we
+// don't have a way to block on a specific output from the handler
+// goroutine without buffering everything through a channel.
 func waitForLine(t *testing.T, rec *sseRecorder, prefix string, timeout time.Duration) {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		body := rec.Body.String()
+		body := rec.Body()
 		sc := bufio.NewScanner(strings.NewReader(body))
 		for sc.Scan() {
 			if strings.HasPrefix(sc.Text(), prefix) {
@@ -123,7 +159,7 @@ func waitForLine(t *testing.T, rec *sseRecorder, prefix string, timeout time.Dur
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
-	t.Fatalf("did not see %q within %s; body=%q", prefix, timeout, rec.Body.String())
+	t.Fatalf("did not see %q within %s; body=%q", prefix, timeout, rec.Body())
 }
 
 // readUntilSeen polls the recorder body until needle appears or the
@@ -133,11 +169,11 @@ func readUntilSeen(t *testing.T, rec *sseRecorder, needle string, timeout time.D
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		body := rec.Body.String()
+		body := rec.Body()
 		if strings.Contains(body, needle) {
 			return body
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
-	return rec.Body.String()
+	return rec.Body()
 }

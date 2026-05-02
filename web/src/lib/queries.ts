@@ -94,7 +94,12 @@ export function useEvents(clusterId?: string) {
   })
 }
 
-export function useAppLogs(app: Application | null, pod?: string, container?: string, tail?: number) {
+export function useAppLogs(
+  app: Application | null,
+  pod?: string,
+  container?: string,
+  tail?: number,
+) {
   const path = app
     ? (() => {
         const base = `/api/v1/applications/${[app.clusterId, app.ns, app.kind, app.name].map(encodeURIComponent).join('/')}/logs`
@@ -233,14 +238,11 @@ export function useRollbackApp() {
   return useMutation({
     mutationFn: ({ app, revision }: { app: Application; revision: string }) => {
       const parts = [app.clusterId, app.ns, app.kind, app.name].map(encodeURIComponent)
-      return fetchJSON<{ status: string }>(
-        `/api/v1/applications/${parts.join('/')}/rollback`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ revision }),
-        },
-      )
+      return fetchJSON<{ status: string }>(`/api/v1/applications/${parts.join('/')}/rollback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ revision }),
+      })
     },
     onSuccess: (_data, { app }) => {
       void qc.invalidateQueries({ queryKey: ['applications'] })
@@ -337,7 +339,9 @@ export function useReconcileAllApps() {
       )
       const failed = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[]
       if (failed.length > 0) {
-        throw new Error(`${failed.length} of ${apps.length} reconciles failed: ${(failed[0].reason as Error).message}`)
+        throw new Error(
+          `${failed.length} of ${apps.length} reconciles failed: ${(failed[0].reason as Error).message}`,
+        )
       }
       return { count: apps.length }
     },

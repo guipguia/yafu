@@ -38,7 +38,10 @@ describe('AppDetailDrawer', () => {
       let body: unknown = {}
       if (path.includes('/diff')) body = { resources: [] }
       else if (path.includes('/render'))
-        body = { source: { name: '', namespace: '', kind: '', revision: '', method: '' }, resources: [] }
+        body = {
+          source: { name: '', namespace: '', kind: '', revision: '', method: '' },
+          resources: [],
+        }
       else if (path.includes('/tree')) body = { nodes: [] }
       else if (path.includes('/history')) body = { entries: [] }
       else if (path.includes('/manifest')) body = { yaml: '' }

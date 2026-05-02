@@ -36,16 +36,39 @@ export function ClusterCard({ c, active, onClick }: Props) {
         <StatusChip status={c.status} />
       </div>
       <div className="health">
-        <div className="h-cell ok"><div className="n tnum">{c.ready}</div><div className="l">Ready</div></div>
-        <div className="h-cell err"><div className="n tnum">{c.failing}</div><div className="l">Failing</div></div>
-        <div className="h-cell warn"><div className="n tnum">{Math.max(0, other)}</div><div className="l">Other</div></div>
-        <div className="h-cell paused"><div className="n tnum">{c.suspended}</div><div className="l">Susp.</div></div>
+        <div className="h-cell ok">
+          <div className="n tnum">{c.ready}</div>
+          <div className="l">Ready</div>
+        </div>
+        <div className="h-cell err">
+          <div className="n tnum">{c.failing}</div>
+          <div className="l">Failing</div>
+        </div>
+        <div className="h-cell warn">
+          <div className="n tnum">{Math.max(0, other)}</div>
+          <div className="l">Other</div>
+        </div>
+        <div className="h-cell paused">
+          <div className="n tnum">{c.suspended}</div>
+          <div className="l">Susp.</div>
+        </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginTop: 6,
+        }}
+      >
         <span className="mono" style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>
           {c.apps} apps · {c.sources} sources{c.version ? ` · flux ${c.version}` : ''}
         </span>
-        {c.env && <span className="mono" style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>{c.env}</span>}
+        {c.env && (
+          <span className="mono" style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>
+            {c.env}
+          </span>
+        )}
       </div>
       {c.spark.length > 1 && (
         <div className="spark">

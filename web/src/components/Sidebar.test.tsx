@@ -18,8 +18,8 @@ describe('Sidebar', () => {
       const body = url.includes('clusters')
         ? { clusters: [] }
         : url.includes('applications')
-        ? { applications: [] }
-        : {}
+          ? { applications: [] }
+          : {}
       return {
         ok: true,
         status: 200,

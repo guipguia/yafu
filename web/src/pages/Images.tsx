@@ -1,9 +1,4 @@
-import {
-  useImageUpdates,
-  useReconcileImage,
-  useResumeImage,
-  useSuspendImage,
-} from '@/lib/queries'
+import { useImageUpdates, useReconcileImage, useResumeImage, useSuspendImage } from '@/lib/queries'
 import { EmptyState, ErrorState, LoadingState } from '@/components/States'
 import { Ic } from '@/components/Icons'
 
@@ -35,8 +30,8 @@ export function ImagesPage() {
             </span>
           </h1>
           <div className="page-sub">
-            ImagePolicies (image-reflector-controller) joined with their
-            referenced ImageRepositories.
+            ImagePolicies (image-reflector-controller) joined with their referenced
+            ImageRepositories.
           </div>
         </div>
       </div>
@@ -64,7 +59,11 @@ export function ImagesPage() {
             partial fan-out:
           </span>{' '}
           {fanoutErrors.map((e, i) => (
-            <span key={e.cluster} className="mono" style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
+            <span
+              key={e.cluster}
+              className="mono"
+              style={{ fontSize: 11.5, color: 'var(--ink-3)' }}
+            >
               {i > 0 && ' · '}
               {e.cluster}: {e.error}
             </span>
@@ -109,28 +108,38 @@ export function ImagesPage() {
                         className="row-status"
                         style={{
                           background:
-                            u.status === 'failing' ? 'var(--err)' :
-                            u.status === 'progressing' ? 'var(--info)' :
-                            u.status === 'paused' ? 'var(--paused)' :
-                            'var(--ok)',
+                            u.status === 'failing'
+                              ? 'var(--err)'
+                              : u.status === 'progressing'
+                                ? 'var(--info)'
+                                : u.status === 'paused'
+                                  ? 'var(--paused)'
+                                  : 'var(--ok)',
                         }}
                       />
                     </td>
                     <td>
                       <span className="name">{u.name}</span>
-                      <span className="ns" style={{ marginLeft: 8 }}>{u.ns}</span>
+                      <span className="ns" style={{ marginLeft: 8 }}>
+                        {u.ns}
+                      </span>
                       {u.suspended && (
                         <span className="chip paused" style={{ marginLeft: 8 }}>
                           <Ic.pause /> Suspended
                         </span>
                       )}
                       {u.status === 'failing' && u.message && (
-                        <div className="mono" style={{ fontSize: 10.5, color: 'var(--err)', marginTop: 2 }}>
+                        <div
+                          className="mono"
+                          style={{ fontSize: 10.5, color: 'var(--err)', marginTop: 2 }}
+                        >
                           {u.message}
                         </div>
                       )}
                     </td>
-                    <td className="mono" style={{ fontSize: 11.5 }}>{u.cluster}</td>
+                    <td className="mono" style={{ fontSize: 11.5 }}>
+                      {u.cluster}
+                    </td>
                     <td
                       className="mono"
                       style={{
@@ -140,10 +149,15 @@ export function ImagesPage() {
                     >
                       {u.image || 'missing ImageRepository'}
                     </td>
-                    <td className="mono" style={{ fontSize: 11.5, color: 'var(--accent-ink)', fontWeight: 600 }}>
+                    <td
+                      className="mono"
+                      style={{ fontSize: 11.5, color: 'var(--accent-ink)', fontWeight: 600 }}
+                    >
                       {u.latestTag ? `↗ ${u.latestTag}` : '—'}
                     </td>
-                    <td className="mono" style={{ fontSize: 11 }}>{u.policy || '—'}</td>
+                    <td className="mono" style={{ fontSize: 11 }}>
+                      {u.policy || '—'}
+                    </td>
                     <td className="ago">{u.age}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>

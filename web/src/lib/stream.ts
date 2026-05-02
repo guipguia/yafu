@@ -18,12 +18,24 @@ export type WatchEvent = {
 // already and will be invalidated automatically.
 const INVALIDATIONS: Record<string, string[][]> = {
   Kustomization: [
-    ['applications'], ['app-tree'], ['app-events'], ['app-history'],
-    ['app-manifest'], ['app-diff'], ['app-logs'], ['clusters'],
+    ['applications'],
+    ['app-tree'],
+    ['app-events'],
+    ['app-history'],
+    ['app-manifest'],
+    ['app-diff'],
+    ['app-logs'],
+    ['clusters'],
   ],
   HelmRelease: [
-    ['applications'], ['app-tree'], ['app-events'], ['app-history'],
-    ['app-manifest'], ['app-diff'], ['app-logs'], ['clusters'],
+    ['applications'],
+    ['app-tree'],
+    ['app-events'],
+    ['app-history'],
+    ['app-manifest'],
+    ['app-diff'],
+    ['app-logs'],
+    ['clusters'],
   ],
   GitRepository: [['sources']],
   HelmRepository: [['sources']],
@@ -43,11 +55,7 @@ const INVALIDATIONS: Record<string, string[][]> = {
 // per second.
 const DEBOUNCE_MS = 300
 
-function scheduleInvalidate(
-  qc: QueryClient,
-  key: string[],
-  pending: Map<string, number>,
-) {
+function scheduleInvalidate(qc: QueryClient, key: string[], pending: Map<string, number>) {
   const id = key.join('|')
   const existing = pending.get(id)
   if (existing) window.clearTimeout(existing)

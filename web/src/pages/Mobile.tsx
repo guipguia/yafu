@@ -23,9 +23,19 @@ export function MobilePage() {
   const firing = incidents.filter((a) => a.status === 'failing').length
 
   return (
-    <div style={{ padding: '24px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+    <div
+      style={{
+        padding: '24px 0',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 16,
+      }}
+    >
       <div style={{ textAlign: 'center', maxWidth: 520 }}>
-        <h1 className="page-title" style={{ justifyContent: 'center' }}>On-call view</h1>
+        <h1 className="page-title" style={{ justifyContent: 'center' }}>
+          On-call view
+        </h1>
         <div className="page-sub">
           Designed for one-handed triage on a 4am pager. Get to the failing thing in 2 taps.
         </div>
@@ -51,7 +61,12 @@ export function MobilePage() {
           <div style={{ padding: 16, borderBottom: '1px solid var(--line)' }}>
             <div
               className="mono"
-              style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}
+              style={{
+                fontSize: 10,
+                color: 'var(--ink-3)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+              }}
             >
               Active incidents
             </div>
@@ -80,7 +95,14 @@ export function MobilePage() {
             <IncidentCard key={i.id} app={i} />
           ))}
         </div>
-        <div style={{ height: 56, borderTop: '1px solid var(--line)', display: 'flex', background: 'var(--bg-2)' }}>
+        <div
+          style={{
+            height: 56,
+            borderTop: '1px solid var(--line)',
+            display: 'flex',
+            background: 'var(--bg-2)',
+          }}
+        >
           {TABS.map(({ label, Icon, active }) => (
             <div
               key={label}
@@ -97,9 +119,18 @@ export function MobilePage() {
               {Icon ? (
                 <Icon />
               ) : (
-                <div style={{ width: 18, height: 18, borderRadius: '50%', background: 'var(--accent)' }} />
+                <div
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: '50%',
+                    background: 'var(--accent)',
+                  }}
+                />
               )}
-              <span className="mono" style={{ fontSize: 9.5 }}>{label}</span>
+              <span className="mono" style={{ fontSize: 9.5 }}>
+                {label}
+              </span>
             </div>
           ))}
         </div>
@@ -160,7 +191,12 @@ function IncidentCard({ app }: { app: Application }) {
         <button className="btn" style={{ flex: 1, justifyContent: 'center' }} disabled title="v0.2">
           Suspend
         </button>
-        <button className="btn primary" style={{ flex: 1, justifyContent: 'center' }} disabled title="v0.2">
+        <button
+          className="btn primary"
+          style={{ flex: 1, justifyContent: 'center' }}
+          disabled
+          title="v0.2"
+        >
           Open
         </button>
       </div>

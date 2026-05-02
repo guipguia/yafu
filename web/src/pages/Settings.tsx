@@ -9,7 +9,8 @@ export function SettingsPage() {
       </div>
       <div className="panel" style={{ padding: 24 }}>
         <div className="mono" style={{ fontSize: 11, color: 'var(--ink-3)', textAlign: 'center' }}>
-          Settings page · placeholder for cluster connections, OIDC, RBAC, AI provider configuration.
+          Settings page · placeholder for cluster connections, OIDC, RBAC, AI provider
+          configuration.
         </div>
       </div>
     </>

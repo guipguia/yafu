@@ -1,9 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import type {
-  Application,
-  RenderResource,
-  RenderResourceStatus,
-} from '@/lib/types'
+import type { Application, RenderResource, RenderResourceStatus } from '@/lib/types'
 import {
   useAppDiff,
   useAppEvents,
@@ -64,11 +60,15 @@ export function AppDetailDrawer({ app, onClose }: Props) {
   const lastError = reconcile.error || suspend.error || resume.error
 
   const dotColor =
-    app.status === 'failing' ? 'var(--err)' :
-    app.status === 'degraded' ? 'var(--warn)' :
-    app.status === 'paused' ? 'var(--paused)' :
-    app.status === 'progressing' ? 'var(--info)' :
-    'var(--ok)'
+    app.status === 'failing'
+      ? 'var(--err)'
+      : app.status === 'degraded'
+        ? 'var(--warn)'
+        : app.status === 'paused'
+          ? 'var(--paused)'
+          : app.status === 'progressing'
+            ? 'var(--info)'
+            : 'var(--ok)'
 
   const titleId = 'app-detail-title'
 
@@ -86,7 +86,9 @@ export function AppDetailDrawer({ app, onClose }: Props) {
               />
               {app.name}
               {app.suspended && (
-                <span className="chip paused"><Ic.pause /> Suspended</span>
+                <span className="chip paused">
+                  <Ic.pause /> Suspended
+                </span>
               )}
             </h2>
             <div className="ns">
@@ -107,15 +109,30 @@ export function AppDetailDrawer({ app, onClose }: Props) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
-            <button className="btn" onClick={() => reconcile.mutate(app)} disabled={busy} title="Trigger reconcile">
+            <button
+              className="btn"
+              onClick={() => reconcile.mutate(app)}
+              disabled={busy}
+              title="Trigger reconcile"
+            >
               <Ic.refresh /> {reconcile.isPending ? 'Reconciling…' : 'Reconcile'}
             </button>
             {app.suspended ? (
-              <button className="btn" onClick={() => resume.mutate(app)} disabled={busy} title="Resume reconciliation">
+              <button
+                className="btn"
+                onClick={() => resume.mutate(app)}
+                disabled={busy}
+                title="Resume reconciliation"
+              >
                 <Ic.play /> {resume.isPending ? 'Resuming…' : 'Resume'}
               </button>
             ) : (
-              <button className="btn" onClick={() => suspend.mutate(app)} disabled={busy} title="Suspend reconciliation">
+              <button
+                className="btn"
+                onClick={() => suspend.mutate(app)}
+                disabled={busy}
+                title="Suspend reconciliation"
+              >
                 <Ic.pause /> {suspend.isPending ? 'Suspending…' : 'Suspend'}
               </button>
             )}
@@ -167,9 +184,10 @@ export function AppDetailDrawer({ app, onClose }: Props) {
                   if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
                   e.preventDefault()
                   const i = TABS.findIndex((x) => x.id === tab)
-                  const next = e.key === 'ArrowRight'
-                    ? TABS[(i + 1) % TABS.length]
-                    : TABS[(i - 1 + TABS.length) % TABS.length]
+                  const next =
+                    e.key === 'ArrowRight'
+                      ? TABS[(i + 1) % TABS.length]
+                      : TABS[(i - 1 + TABS.length) % TABS.length]
                   setTab(next.id)
                   document.getElementById(`app-tab-${next.id}`)?.focus()
                 }}
@@ -205,7 +223,9 @@ function OverviewTab({ app }: { app: Application }) {
       <div className="split">
         <div className="panel">
           <div className="panel-head">
-            <div className="panel-title"><span className="lab">Status</span>Reconciliation</div>
+            <div className="panel-title">
+              <span className="lab">Status</span>Reconciliation
+            </div>
             <div className="panel-actions">
               <span className="mono" style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>
                 last reconcile {app.age}
@@ -222,14 +242,18 @@ function OverviewTab({ app }: { app: Application }) {
             <KV k="Namespace" v={<span className="mono">{app.ns}</span>} />
             <KV k="Source" v={<span className="mono">{app.source || '—'}</span>} />
             <KV k="Revision" v={<span className="mono">{app.revision || '—'}</span>} />
-            {app.replicas && <KV k="Replicas" v={<span className="mono tnum">{app.replicas}</span>} />}
+            {app.replicas && (
+              <KV k="Replicas" v={<span className="mono tnum">{app.replicas}</span>} />
+            )}
             <KV k="Last applied" v={<span className="mono">{app.age}</span>} />
           </div>
         </div>
 
         <div className="panel">
           <div className="panel-head">
-            <div className="panel-title"><span className="lab">Status</span>Message</div>
+            <div className="panel-title">
+              <span className="lab">Status</span>Message
+            </div>
           </div>
           <div className="panel-body">
             {app.message ? (
@@ -240,10 +264,7 @@ function OverviewTab({ app }: { app: Application }) {
                 {app.message}
               </p>
             ) : (
-              <p
-                className="mono"
-                style={{ fontSize: 11.5, color: 'var(--ink-3)', margin: 0 }}
-              >
+              <p className="mono" style={{ fontSize: 11.5, color: 'var(--ink-3)', margin: 0 }}>
                 no status message reported
               </p>
             )}
@@ -290,7 +311,9 @@ function LogsTab({ app }: { app: Application }) {
           }}
         >
           <div className="panel-title" style={{ color: 'oklch(80% 0 0)' }}>
-            <span className="lab" style={{ color: 'oklch(60% 0 0)' }}>Logs</span>
+            <span className="lab" style={{ color: 'oklch(60% 0 0)' }}>
+              Logs
+            </span>
             <select
               value={pod ?? data?.selected ?? ''}
               onChange={(e) => {
@@ -318,17 +341,16 @@ function LogsTab({ app }: { app: Application }) {
                 style={{ ...selectStyle, marginLeft: 6 }}
               >
                 {containers.map((c) => (
-                  <option key={c} value={c}>{c}</option>
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
                 ))}
               </select>
             )}
           </div>
           <div className="panel-actions" style={{ gap: 10 }}>
             {truncated && !live && (
-              <span
-                className="mono"
-                style={{ fontSize: 10.5, color: 'oklch(78% 0.16 75)' }}
-              >
+              <span className="mono" style={{ fontSize: 10.5, color: 'oklch(78% 0.16 75)' }}>
                 truncated · last 256 KiB
               </span>
             )}
@@ -389,9 +411,7 @@ function LogsTab({ app }: { app: Application }) {
           {live && (
             <>
               {liveLines.lines.length === 0 && (
-                <span style={{ color: 'oklch(60% 0 0)' }}>
-                  # waiting for live output…
-                </span>
+                <span style={{ color: 'oklch(60% 0 0)' }}># waiting for live output…</span>
               )}
               {liveLines.lines.join('\n')}
               {liveLines.error && (
@@ -575,10 +595,13 @@ function DriftTab({ app }: { app: Application }) {
                       className="row-status"
                       style={{
                         background:
-                          r.status === 'drift' ? 'var(--err)' :
-                          r.status === 'notfound' ? 'var(--paused)' :
-                          r.status === 'unknown' ? 'var(--warn)' :
-                          'var(--ok)',
+                          r.status === 'drift'
+                            ? 'var(--err)'
+                            : r.status === 'notfound'
+                              ? 'var(--paused)'
+                              : r.status === 'unknown'
+                                ? 'var(--warn)'
+                                : 'var(--ok)',
                       }}
                     />
                   </td>
@@ -591,13 +614,21 @@ function DriftTab({ app }: { app: Application }) {
                   </td>
                   <td>
                     <StatusChip
-                      status={r.status === 'drift' ? 'failing' : r.status === 'notfound' ? 'paused' : 'healthy'}
+                      status={
+                        r.status === 'drift'
+                          ? 'failing'
+                          : r.status === 'notfound'
+                            ? 'paused'
+                            : 'healthy'
+                      }
                       label={r.status}
                     />
                   </td>
                   <td>
                     {(r.managers ?? []).length === 0 ? (
-                      <span className="mono" style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>—</span>
+                      <span className="mono" style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
+                        —
+                      </span>
                     ) : (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         {r.managers!.map((m, j) => (
@@ -830,7 +861,9 @@ function SummaryRow({ tone, label, n }: { tone: string; label: string; n: number
     <div className="row">
       <span className={`dot ${tone}`} aria-hidden="true" />
       <span>{label}</span>
-      <span className="n" style={{ marginLeft: 'auto' }}>{n}</span>
+      <span className="n" style={{ marginLeft: 'auto' }}>
+        {n}
+      </span>
     </div>
   )
 }
@@ -942,7 +975,7 @@ function SplitDiff({ resource }: { resource: RenderResource }) {
                   key={`d-${hi}-${li}`}
                   tabIndex={showDel ? 0 : undefined}
                 >
-                  <span className="n">{showEmpty ? '·' : l.desiredLn ?? ''}</span>
+                  <span className="n">{showEmpty ? '·' : (l.desiredLn ?? '')}</span>
                   <code>{showEmpty ? '(no line)' : l.text}</code>
                 </div>
               )
@@ -969,7 +1002,7 @@ function SplitDiff({ resource }: { resource: RenderResource }) {
                   key={`l-${hi}-${li}`}
                   tabIndex={showAdd ? 0 : undefined}
                 >
-                  <span className="n">{showEmpty ? '·' : l.liveLn ?? ''}</span>
+                  <span className="n">{showEmpty ? '·' : (l.liveLn ?? '')}</span>
                   <code>{showEmpty ? '(no line)' : l.text}</code>
                 </div>
               )
@@ -992,11 +1025,7 @@ function UnifiedDiff({ resource }: { resource: RenderResource }) {
             if (l.kind === 'empty') return null
             const cls = l.kind === 'add' ? 'add' : l.kind === 'del' ? 'del' : ''
             return (
-              <div
-                className={`ln ${cls}`}
-                key={`u-${hi}-${li}`}
-                tabIndex={cls ? 0 : undefined}
-              >
+              <div className={`ln ${cls}`} key={`u-${hi}-${li}`} tabIndex={cls ? 0 : undefined}>
                 <span className="n">{l.desiredLn ?? ''}</span>
                 <span className="n2">{l.liveLn ?? ''}</span>
                 <code>{l.text}</code>
@@ -1028,7 +1057,10 @@ function MissingState() {
         <Ic.warn />
       </div>
       <h4>Missing on cluster</h4>
-      <p>This resource is in the rendered source but hasn't been applied yet. Triggering a reconcile will create it.</p>
+      <p>
+        This resource is in the rendered source but hasn't been applied yet. Triggering a reconcile
+        will create it.
+      </p>
     </div>
   )
 }
@@ -1040,7 +1072,10 @@ function ExtraState() {
         <Ic.warn />
       </div>
       <h4>Extra on cluster</h4>
-      <p>This resource exists on the cluster but is not in the rendered source. With <code>prune: true</code>, Flux would delete it on the next reconcile.</p>
+      <p>
+        This resource exists on the cluster but is not in the rendered source. With{' '}
+        <code>prune: true</code>, Flux would delete it on the next reconcile.
+      </p>
     </div>
   )
 }
@@ -1052,8 +1087,13 @@ function RenderErrorState({ resource }: { resource: RenderResource }) {
         <Ic.warn />
       </div>
       <h4>Source render failed</h4>
-      <p>Flux couldn't render the manifest for this resource. The diff is unavailable until the build error is resolved.</p>
-      <pre className="err-output" role="alert">{resource.renderError ?? '(no output)'}</pre>
+      <p>
+        Flux couldn't render the manifest for this resource. The diff is unavailable until the build
+        error is resolved.
+      </p>
+      <pre className="err-output" role="alert">
+        {resource.renderError ?? '(no output)'}
+      </pre>
     </div>
   )
 }
@@ -1066,17 +1106,14 @@ function RenderErrorState({ resource }: { resource: RenderResource }) {
 function RenderUnavailableState({ message }: { message?: string }) {
   return (
     <div className="render-diff">
-      <div
-        className="state"
-        style={{ marginTop: 14, marginLeft: 18, marginRight: 18 }}
-      >
+      <div className="state" style={{ marginTop: 14, marginLeft: 18, marginRight: 18 }}>
         <div className="ico-wrap" aria-hidden="true">
           <Ic.warn />
         </div>
         <h4>Couldn't reach the render endpoint</h4>
         <p>
-          The Git-vs-cluster diff is unavailable. Check that the cluster is
-          reachable and that you have permission to read it.
+          The Git-vs-cluster diff is unavailable. Check that the cluster is reachable and that you
+          have permission to read it.
         </p>
         {message && (
           <pre className="err-output" role="alert" style={{ maxWidth: 520 }}>
@@ -1101,10 +1138,7 @@ function RenderTopLevelError({
 }) {
   return (
     <div className="render-diff">
-      <div
-        className="state"
-        style={{ marginTop: 14, marginLeft: 18, marginRight: 18 }}
-      >
+      <div className="state" style={{ marginTop: 14, marginLeft: 18, marginRight: 18 }}>
         <div className="ico-wrap" aria-hidden="true">
           <Ic.warn />
         </div>
@@ -1127,17 +1161,14 @@ function RenderTopLevelError({
 function RenderLoadingState() {
   return (
     <div className="render-diff">
-      <div
-        className="state info"
-        style={{ marginTop: 14, marginLeft: 18, marginRight: 18 }}
-      >
+      <div className="state info" style={{ marginTop: 14, marginLeft: 18, marginRight: 18 }}>
         <div className="ico-wrap" aria-hidden="true">
           <Ic.refresh />
         </div>
         <h4>Rendering source…</h4>
         <p>
-          <code>kustomize build</code> can take 1–10s. We'll show the diff as
-          soon as the manifest is ready.
+          <code>kustomize build</code> can take 1–10s. We'll show the diff as soon as the manifest
+          is ready.
         </p>
       </div>
     </div>
@@ -1174,21 +1205,31 @@ function statusTone(s: RenderResourceStatus): 'ok' | 'warn' | 'info' | 'err' {
 
 function statusLabel(s: RenderResourceStatus): string {
   switch (s) {
-    case 'in-sync': return 'In sync'
-    case 'drifted': return 'Drifted'
-    case 'missing-on-cluster': return 'Missing on cluster'
-    case 'extra-on-cluster': return 'Extra on cluster'
-    case 'render-error': return 'Render error'
+    case 'in-sync':
+      return 'In sync'
+    case 'drifted':
+      return 'Drifted'
+    case 'missing-on-cluster':
+      return 'Missing on cluster'
+    case 'extra-on-cluster':
+      return 'Extra on cluster'
+    case 'render-error':
+      return 'Render error'
   }
 }
 
 function shortStatus(s: RenderResourceStatus): string {
   switch (s) {
-    case 'in-sync': return 'in-sync'
-    case 'drifted': return 'drifted'
-    case 'missing-on-cluster': return 'missing'
-    case 'extra-on-cluster': return 'extra'
-    case 'render-error': return 'render-error'
+    case 'in-sync':
+      return 'in-sync'
+    case 'drifted':
+      return 'drifted'
+    case 'missing-on-cluster':
+      return 'missing'
+    case 'extra-on-cluster':
+      return 'extra'
+    case 'render-error':
+      return 'render-error'
   }
 }
 
@@ -1196,14 +1237,32 @@ function StatusIcon({ status }: { status: RenderResourceStatus }) {
   switch (status) {
     case 'in-sync':
       return (
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.6}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <path d="M3 8.5l3.5 3 7-7" />
         </svg>
       )
     case 'drifted':
     case 'render-error':
       return (
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.4}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <path d="M8 2.5l6 11h-12z" />
           <path d="M8 6.5v3.5" />
           <circle cx="8" cy="11.8" r="0.6" fill="currentColor" />
@@ -1211,7 +1270,16 @@ function StatusIcon({ status }: { status: RenderResourceStatus }) {
       )
     case 'missing-on-cluster':
       return (
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.4}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <path d="M8 4v5" />
           <path d="M5 9l3 3 3-3" />
           <path d="M3 14h10" />
@@ -1219,7 +1287,16 @@ function StatusIcon({ status }: { status: RenderResourceStatus }) {
       )
     case 'extra-on-cluster':
       return (
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.4}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <circle cx="8" cy="8" r="6" />
           <path d="M5.5 5.5l5 5M10.5 5.5l-5 5" />
         </svg>
@@ -1304,7 +1381,8 @@ function TreeTab({ app }: { app: Application }) {
         <div className="panel-head">
           <div className="panel-title">
             <span className="lab">Tree</span>
-            Inventory <span style={{ color: 'var(--ink-3)', fontWeight: 400 }}>({nodes.length})</span>
+            Inventory{' '}
+            <span style={{ color: 'var(--ink-3)', fontWeight: 400 }}>({nodes.length})</span>
           </div>
           <div className="panel-actions">
             <span className="mono" style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>
@@ -1331,11 +1409,15 @@ function TreeTab({ app }: { app: Application }) {
                     height: 6,
                     borderRadius: '50%',
                     background:
-                      n.status === 'failing' ? 'var(--err)' :
-                      n.status === 'progressing' ? 'var(--info)' :
-                      n.status === 'notfound' ? 'var(--paused)' :
-                      n.status === 'unknown' ? 'var(--warn)' :
-                      'var(--ok)',
+                      n.status === 'failing'
+                        ? 'var(--err)'
+                        : n.status === 'progressing'
+                          ? 'var(--info)'
+                          : n.status === 'notfound'
+                            ? 'var(--paused)'
+                            : n.status === 'unknown'
+                              ? 'var(--warn)'
+                              : 'var(--ok)',
                     flex: '0 0 6px',
                   }}
                 />
@@ -1351,9 +1433,11 @@ function TreeTab({ app }: { app: Application }) {
                       marginLeft: 'auto',
                       fontSize: 10.5,
                       color:
-                        n.status === 'failing' ? 'var(--err)' :
-                        n.status === 'notfound' ? 'var(--paused)' :
-                        'var(--ink-3)',
+                        n.status === 'failing'
+                          ? 'var(--err)'
+                          : n.status === 'notfound'
+                            ? 'var(--paused)'
+                            : 'var(--ink-3)',
                     }}
                   >
                     {n.message}
@@ -1393,7 +1477,11 @@ function HistoryTab({ app }: { app: Application }) {
 
   const onRollback = () => {
     if (!selectedRev) return
-    if (!window.confirm(`Roll back ${app.name} to ${selectedRev}? This patches spec.chart.spec.version and triggers a forced reconcile.`)) {
+    if (
+      !window.confirm(
+        `Roll back ${app.name} to ${selectedRev}? This patches spec.chart.spec.version and triggers a forced reconcile.`,
+      )
+    ) {
       return
     }
     rollback.mutate({ app, revision: selectedRev })
@@ -1415,12 +1503,11 @@ function HistoryTab({ app }: { app: Application }) {
                 !isHelm
                   ? 'Kustomizations roll forward — revert in Git instead'
                   : !selectedRev
-                  ? 'Select a previous revision below'
-                  : `Roll back to ${selectedRev}`
+                    ? 'Select a previous revision below'
+                    : `Roll back to ${selectedRev}`
               }
             >
-              <Ic.refresh />{' '}
-              {rollback.isPending ? 'Rolling back…' : 'Rollback to selected'}
+              <Ic.refresh /> {rollback.isPending ? 'Rolling back…' : 'Rollback to selected'}
             </button>
           </div>
         </div>
@@ -1444,9 +1531,11 @@ function HistoryTab({ app }: { app: Application }) {
         {!isLoading && !error && entries.length === 0 && (
           <EmptyState
             title="No history"
-            hint={app.kind === 'HelmRelease'
-              ? 'No HelmRelease snapshots recorded yet.'
-              : 'Kustomization only retains its current revision.'}
+            hint={
+              app.kind === 'HelmRelease'
+                ? 'No HelmRelease snapshots recorded yet.'
+                : 'Kustomization only retains its current revision.'
+            }
           />
         )}
         {entries.length > 0 && (
@@ -1490,22 +1579,41 @@ function HistoryTab({ app }: { app: Application }) {
                         className="row-status"
                         style={{
                           background:
-                            e.status === 'failed' ? 'var(--err)' :
-                            e.status === 'superseded' ? 'var(--paused)' :
-                            'var(--ok)',
+                            e.status === 'failed'
+                              ? 'var(--err)'
+                              : e.status === 'superseded'
+                                ? 'var(--paused)'
+                                : 'var(--ok)',
                         }}
                       />
                     </td>
                     <td>
-                      <span className="mono" style={{ color: 'var(--accent-ink)' }}>{e.revision}</span>
+                      <span className="mono" style={{ color: 'var(--accent-ink)' }}>
+                        {e.revision}
+                      </span>
                       {e.current && (
-                        <span className="chip info" style={{ marginLeft: 8 }}>current</span>
+                        <span className="chip info" style={{ marginLeft: 8 }}>
+                          current
+                        </span>
                       )}
                     </td>
-                    <td className="mono" style={{ fontSize: 11.5 }}>{e.action || '—'}</td>
-                    <td className="mono" style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>{e.appVersion || '—'}</td>
+                    <td className="mono" style={{ fontSize: 11.5 }}>
+                      {e.action || '—'}
+                    </td>
+                    <td className="mono" style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
+                      {e.appVersion || '—'}
+                    </td>
                     <td>
-                      <StatusChip status={e.status === 'deployed' ? 'healthy' : e.status === 'failed' ? 'failing' : 'paused'} label={e.status} />
+                      <StatusChip
+                        status={
+                          e.status === 'deployed'
+                            ? 'healthy'
+                            : e.status === 'failed'
+                              ? 'failing'
+                              : 'paused'
+                        }
+                        label={e.status}
+                      />
                     </td>
                     <td className="ago">{e.timestamp ? formatEventTime(e.timestamp) : '—'}</td>
                   </tr>
@@ -1569,9 +1677,11 @@ function EventsTab({ app }: { app: Application }) {
                       style={{
                         textTransform: 'uppercase',
                         color:
-                          e.kind === 'err' ? 'var(--err)' :
-                          e.kind === 'warn' ? 'var(--warn)' :
-                          'var(--ok)',
+                          e.kind === 'err'
+                            ? 'var(--err)'
+                            : e.kind === 'warn'
+                              ? 'var(--warn)'
+                              : 'var(--ok)',
                       }}
                     >
                       {e.reason}

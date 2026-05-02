@@ -1,0 +1,8 @@
+# Ignore directories Prettier shouldn't touch.
+node_modules/
+dist/
+build/
+coverage/
+
+# Generated files — owned by codegen, formatted by their generator.
+src/lib/api-types.ts

@@ -41,23 +41,35 @@ export function Sidebar({ active, onNav, side, cluster, onClusterClick }: Props)
   const failingApps = apps.filter((a) => a.status === 'failing').length
 
   const items: NavItem[] = [
-    { id: 'fleet', label: 'Fleet', icon: Ic.cluster, count: clusters.length || undefined, section: 'Overview' },
+    {
+      id: 'fleet',
+      label: 'Fleet',
+      icon: Ic.cluster,
+      count: clusters.length || undefined,
+      section: 'Overview',
+    },
     { id: 'apps', label: 'Applications', icon: Ic.app, count: apps.length || undefined },
     { id: 'sources', label: 'Sources', icon: Ic.source, section: 'Catalog' },
     { id: 'images', label: 'Image Updates', icon: Ic.image },
     { id: 'alerts', label: 'Alerts', icon: Ic.alert },
     { id: 'events', label: 'Activity', icon: Ic.events, section: 'Operate' },
-    { id: 'mobile', label: 'On-call view', icon: Ic.bell, count: failingApps || undefined, countCls: failingApps ? 'err' : '' },
+    {
+      id: 'mobile',
+      label: 'On-call view',
+      icon: Ic.bell,
+      count: failingApps || undefined,
+      countCls: failingApps ? 'err' : '',
+    },
     { id: 'settings', label: 'Settings', icon: Ic.settings, section: 'Admin' },
   ]
 
   const dotColor = !cluster
     ? 'var(--paused)'
     : cluster.status === 'unreachable' || cluster.status === 'failing'
-    ? 'var(--err)'
-    : cluster.status === 'degraded'
-    ? 'var(--warn)'
-    : 'var(--ok)'
+      ? 'var(--err)'
+      : cluster.status === 'degraded'
+        ? 'var(--warn)'
+        : 'var(--ok)'
 
   return (
     <aside className="side">
@@ -85,7 +97,9 @@ export function Sidebar({ active, onNav, side, cluster, onClusterClick }: Props)
             }}
           />
           <span className="name">{cluster ? cluster.name : 'no cluster selected'}</span>
-          <span className="chev"><Ic.chev /></span>
+          <span className="chev">
+            <Ic.chev />
+          </span>
         </button>
       </div>
       <nav className="nav" aria-label="Main">
@@ -95,17 +109,24 @@ export function Sidebar({ active, onNav, side, cluster, onClusterClick }: Props)
           return (
             <Fragment key={it.id}>
               {it.section && (
-                <div className="nav-section" role="presentation">{it.section}</div>
+                <div className="nav-section" role="presentation">
+                  {it.section}
+                </div>
               )}
               <a
                 className={`nav-item ${isActive ? 'active' : ''}`}
-                onClick={(e) => { e.preventDefault(); onNav(it.id) }}
+                onClick={(e) => {
+                  e.preventDefault()
+                  onNav(it.id)
+                }}
                 href="#"
                 title={side === 'icons' ? it.label : undefined}
                 aria-label={side === 'icons' ? it.label : undefined}
                 aria-current={isActive ? 'page' : undefined}
               >
-                <span className="ico" aria-hidden="true"><Icon /></span>
+                <span className="ico" aria-hidden="true">
+                  <Icon />
+                </span>
                 <span className="lab">{it.label}</span>
                 {it.count !== undefined && (
                   <span className={`count ${it.countCls || ''}`} aria-label={`${it.count} items`}>
@@ -125,8 +146,9 @@ export function Sidebar({ active, onNav, side, cluster, onClusterClick }: Props)
 function SidebarFoot() {
   const { data: me } = useWhoami()
   const displayName = me?.name || me?.email || me?.subject || 'yafu'
-  const subline = me?.isAnonymous === false ? (me?.email || me?.subject) : 'v0.1 alpha'
-  const initials = (displayName.match(/[A-Za-z0-9]/g) ?? []).slice(0, 2).join('').toUpperCase() || 'YA'
+  const subline = me?.isAnonymous === false ? me?.email || me?.subject : 'v0.1 alpha'
+  const initials =
+    (displayName.match(/[A-Za-z0-9]/g) ?? []).slice(0, 2).join('').toUpperCase() || 'YA'
 
   return (
     <div className="side-foot">

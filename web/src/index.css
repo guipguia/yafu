@@ -841,8 +841,7 @@ textarea {
   height: 220px;
   background:
     repeating-linear-gradient(0deg, transparent 0 19px, var(--line) 19px 20px),
-    repeating-linear-gradient(90deg, transparent 0 19px, var(--line) 19px 20px),
-    var(--bg-2);
+    repeating-linear-gradient(90deg, transparent 0 19px, var(--line) 19px 20px), var(--bg-2);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   position: relative;

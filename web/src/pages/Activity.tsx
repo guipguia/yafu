@@ -47,7 +47,9 @@ export function ActivityPage() {
             <span className="meta">{events.length} recent events · live</span>
             <span className="pulse" />
           </h1>
-          <div className="page-sub">k8s Events emitted by Flux controllers across every reachable cluster.</div>
+          <div className="page-sub">
+            k8s Events emitted by Flux controllers across every reachable cluster.
+          </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <div className="diff-mode-seg" role="group" aria-label="Filter by severity">
@@ -64,7 +66,9 @@ export function ActivityPage() {
             ))}
           </div>
           <div className="search" role="search" style={{ minWidth: 220 }}>
-            <span aria-hidden="true"><Ic.search /></span>
+            <span aria-hidden="true">
+              <Ic.search />
+            </span>
             <input
               aria-label="Search events"
               placeholder="Search reason, message, object…"
@@ -84,7 +88,11 @@ export function ActivityPage() {
             partial fan-out:
           </span>{' '}
           {fanoutErrors.map((e, i) => (
-            <span key={e.cluster} className="mono" style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
+            <span
+              key={e.cluster}
+              className="mono"
+              style={{ fontSize: 11.5, color: 'var(--ink-3)' }}
+            >
               {i > 0 && ' · '}
               {e.cluster}: {e.error}
             </span>
@@ -105,7 +113,9 @@ export function ActivityPage() {
         <div className="split">
           <div className="panel">
             <div className="panel-head">
-              <div className="panel-title"><span className="lab">Stream</span>Live activity</div>
+              <div className="panel-title">
+                <span className="lab">Stream</span>Live activity
+              </div>
             </div>
             <div className="panel-body">
               <div className="timeline">
@@ -120,7 +130,10 @@ export function ActivityPage() {
                       </span>
                     </div>
                     <div className="tl-msg">
-                      <span className="mono" style={{ fontSize: 10.5, color: 'var(--ink-3)', marginRight: 6 }}>
+                      <span
+                        className="mono"
+                        style={{ fontSize: 10.5, color: 'var(--ink-3)', marginRight: 6 }}
+                      >
                         {e.reason}
                       </span>
                       {e.message}
@@ -132,7 +145,9 @@ export function ActivityPage() {
           </div>
           <div className="panel">
             <div className="panel-head">
-              <div className="panel-title"><span className="lab">Top</span>Most active sources</div>
+              <div className="panel-title">
+                <span className="lab">Top</span>Most active sources
+              </div>
             </div>
             <div className="panel-body">
               <div className="mono" style={{ fontSize: 11, color: 'var(--ink-3)' }}>

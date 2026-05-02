@@ -55,7 +55,10 @@ export function Topbar({ crumbs, theme, onToggleTheme }: Props) {
           <span aria-hidden="true">
             <Ic.search />
           </span>
-          <input aria-label="Search apps, resources, clusters" placeholder="Search apps, resources, clusters…" />
+          <input
+            aria-label="Search apps, resources, clusters"
+            placeholder="Search apps, resources, clusters…"
+          />
           <span className="kbd" aria-hidden="true">
             ⌘K
           </span>

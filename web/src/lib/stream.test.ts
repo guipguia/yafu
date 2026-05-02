@@ -27,7 +27,9 @@ class FakeEventSource {
   removeEventListener(type: string, fn: (e: MessageEvent) => void) {
     this.listeners.get(type)?.delete(fn)
   }
-  close() { this.closed = true }
+  close() {
+    this.closed = true
+  }
   fire(type: string, data: unknown) {
     const listeners = this.listeners.get(type)
     if (!listeners) return

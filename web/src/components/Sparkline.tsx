@@ -13,7 +13,10 @@ export function Sparkline({ data, status = 'ok', width = 240, height = 32 }: Pro
   const w = width
   const h = height
   const step = w / (data.length - 1)
-  const pts = data.map((v, i): [number, number] => [i * step, h - 4 - ((v - min) / range) * (h - 8)])
+  const pts = data.map((v, i): [number, number] => [
+    i * step,
+    h - 4 - ((v - min) / range) * (h - 8),
+  ])
   const line = pts.map((p, i) => (i === 0 ? `M${p[0]},${p[1]}` : `L${p[0]},${p[1]}`)).join(' ')
   const area = `${line} L${w},${h} L0,${h} Z`
   return (

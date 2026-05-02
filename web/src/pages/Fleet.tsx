@@ -40,12 +40,28 @@ export function FleetPage({ layout, setLayout, clusterId, pickCluster }: Props) 
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <div className="seg" role="tablist">
-            <button className={layout === 'cards' ? 'active' : ''} onClick={() => setLayout('cards')}>Cards</button>
-            <button className={layout === 'matrix' ? 'active' : ''} onClick={() => setLayout('matrix')}>Matrix</button>
-            <button className={layout === 'map' ? 'active' : ''} onClick={() => setLayout('map')}>Map</button>
+            <button
+              className={layout === 'cards' ? 'active' : ''}
+              onClick={() => setLayout('cards')}
+            >
+              Cards
+            </button>
+            <button
+              className={layout === 'matrix' ? 'active' : ''}
+              onClick={() => setLayout('matrix')}
+            >
+              Matrix
+            </button>
+            <button className={layout === 'map' ? 'active' : ''} onClick={() => setLayout('map')}>
+              Map
+            </button>
           </div>
-          <button className="btn"><Ic.filter /> Filter</button>
-          <button className="btn"><Ic.refresh /> Refresh</button>
+          <button className="btn">
+            <Ic.filter /> Filter
+          </button>
+          <button className="btn">
+            <Ic.refresh /> Refresh
+          </button>
         </div>
       </div>
 
@@ -54,7 +70,11 @@ export function FleetPage({ layout, setLayout, clusterId, pickCluster }: Props) 
           label="Apps reconciling"
           value={totalReady}
           of={totalApps}
-          delta={<><span style={{ color: 'var(--ok)' }}>● {readyPct}%</span> ready</>}
+          delta={
+            <>
+              <span style={{ color: 'var(--ok)' }}>● {readyPct}%</span> ready
+            </>
+          }
           tone="ok"
         />
         <Stat
@@ -63,12 +83,7 @@ export function FleetPage({ layout, setLayout, clusterId, pickCluster }: Props) 
           delta={<>{clusters.filter((c) => c.failing > 0).length} clusters</>}
           tone={totalFail > 0 ? 'err' : ''}
         />
-        <Stat
-          label="Suspended"
-          value={totalSusp}
-          tone="warn"
-          accent="var(--paused)"
-        />
+        <Stat label="Suspended" value={totalSusp} tone="warn" accent="var(--paused)" />
         <Stat label="Image updates pending" value={'—'} delta={<>v0.2</>} />
       </div>
 
@@ -79,8 +94,8 @@ export function FleetPage({ layout, setLayout, clusterId, pickCluster }: Props) 
           title="No clusters registered"
           hint={
             <>
-              In CRD mode, create a <span className="mono">Cluster</span> CR pointing at a kubeconfig
-              Secret. In file mode, set <span className="mono">--config-file</span> or{' '}
+              In CRD mode, create a <span className="mono">Cluster</span> CR pointing at a
+              kubeconfig Secret. In file mode, set <span className="mono">--config-file</span> or{' '}
               <span className="mono">--kubeconfig</span>.
             </>
           }
@@ -90,7 +105,12 @@ export function FleetPage({ layout, setLayout, clusterId, pickCluster }: Props) 
       {clusters.length > 0 && layout === 'cards' && (
         <div className="cluster-grid">
           {clusters.map((c) => (
-            <ClusterCard key={c.id} c={asCardCluster(c)} active={c.id === clusterId} onClick={() => pickCluster(c.id)} />
+            <ClusterCard
+              key={c.id}
+              c={asCardCluster(c)}
+              active={c.id === clusterId}
+              onClick={() => pickCluster(c.id)}
+            />
           ))}
         </div>
       )}
@@ -136,7 +156,9 @@ function FleetMatrix({
   return (
     <div className="panel" style={{ overflow: 'hidden' }}>
       <div className="panel-head">
-        <div className="panel-title"><span className="lab">View</span>Cluster × Namespace matrix</div>
+        <div className="panel-title">
+          <span className="lab">View</span>Cluster × Namespace matrix
+        </div>
         <div className="panel-actions">
           <span className="mono" style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>
             namespace breakdown lands in v0.2
@@ -148,29 +170,45 @@ function FleetMatrix({
           <thead>
             <tr>
               <th style={{ minWidth: 200 }}>Cluster</th>
-              {buckets.map((b) => <th key={b} style={{ minWidth: 90 }}>{b}</th>)}
+              {buckets.map((b) => (
+                <th key={b} style={{ minWidth: 90 }}>
+                  {b}
+                </th>
+              ))}
               <th>Health</th>
             </tr>
           </thead>
           <tbody>
             {clusters.map((c) => (
-              <tr key={c.id} className={c.id === activeId ? 'selected' : ''} onClick={() => onPick(c.id)}>
+              <tr
+                key={c.id}
+                className={c.id === activeId ? 'selected' : ''}
+                onClick={() => onPick(c.id)}
+              >
                 <td>
                   <span
                     className="row-status"
                     style={{
                       background:
-                        c.status === 'failing' || c.status === 'unreachable' ? 'var(--err)' :
-                        c.status === 'degraded' ? 'var(--warn)' :
-                        'var(--ok)',
+                        c.status === 'failing' || c.status === 'unreachable'
+                          ? 'var(--err)'
+                          : c.status === 'degraded'
+                            ? 'var(--warn)'
+                            : 'var(--ok)',
                     }}
                   />
                   <span className="name mono">{c.name}</span>
-                  {c.region && <span className="ns" style={{ marginLeft: 8 }}>{c.region}</span>}
+                  {c.region && (
+                    <span className="ns" style={{ marginLeft: 8 }}>
+                      {c.region}
+                    </span>
+                  )}
                 </td>
                 {buckets.map((b) => (
                   <td key={b}>
-                    <span className="mono" style={{ color: 'var(--ink-4)' }}>—</span>
+                    <span className="mono" style={{ color: 'var(--ink-4)' }}>
+                      —
+                    </span>
                   </td>
                 ))}
                 <td style={{ width: 140 }}>
@@ -204,7 +242,9 @@ function FleetMap({
   return (
     <div className="panel">
       <div className="panel-head">
-        <div className="panel-title"><span className="lab">View</span>Geo distribution</div>
+        <div className="panel-title">
+          <span className="lab">View</span>Geo distribution
+        </div>
         <div className="panel-actions">
           <span className="mono" style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>
             geo coordinates from Cluster CR · v0.2
@@ -212,12 +252,24 @@ function FleetMap({
         </div>
       </div>
       <div className="panel-body">
-        <div className="fleet-map" style={{ height: 320, display: 'flex', flexWrap: 'wrap', gap: 8, padding: 16, position: 'relative' }}>
+        <div
+          className="fleet-map"
+          style={{
+            height: 320,
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 8,
+            padding: 16,
+            position: 'relative',
+          }}
+        >
           {clusters.map((c) => {
             const tone =
-              c.status === 'failing' || c.status === 'unreachable' ? 'var(--err)' :
-              c.status === 'degraded' ? 'var(--warn)' :
-              'var(--ok)'
+              c.status === 'failing' || c.status === 'unreachable'
+                ? 'var(--err)'
+                : c.status === 'degraded'
+                  ? 'var(--warn)'
+                  : 'var(--ok)'
             return (
               <button
                 key={c.id}
@@ -235,9 +287,13 @@ function FleetMap({
                 }}
               >
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: tone }} />
-                <span className="mono" style={{ fontSize: 10.5 }}>{c.name}</span>
+                <span className="mono" style={{ fontSize: 10.5 }}>
+                  {c.name}
+                </span>
                 {c.failing > 0 && (
-                  <span className="mono" style={{ fontSize: 10, color: 'var(--err)' }}>{c.failing}!</span>
+                  <span className="mono" style={{ fontSize: 10, color: 'var(--err)' }}>
+                    {c.failing}!
+                  </span>
                 )}
               </button>
             )

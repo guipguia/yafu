@@ -17,14 +17,19 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version-file: go.mod
           cache: true
       - name: go vet
         run: go vet ./...
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        # v6 with version: latest historically resolves to v1.64.x,
+        # which was built with Go 1.24 and refuses to lint a module
+        # that targets Go 1.26 (our go.mod, pinned by helm.sh/helm/v3
+        # and go.opentelemetry.io/otel). Pin to v2.x — built with a
+        # newer Go and supports everything >= 1.22.
+        uses: golangci/golangci-lint-action@v8
         with:
-          version: latest
+          version: v2.5.0
           args: --timeout=5m
 
   test-go:
@@ -34,7 +39,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version-file: go.mod
           cache: true
       - run: go test -race -coverprofile=coverage.out ./cmd/... ./internal/... ./api/...
       - uses: actions/upload-artifact@v4
@@ -49,7 +54,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version-file: go.mod
           cache: true
       - run: go build ./...
 
@@ -129,7 +134,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version-file: go.mod
           cache: true
 
       - uses: helm/kind-action@v1

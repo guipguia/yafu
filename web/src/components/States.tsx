@@ -12,7 +12,9 @@ export function LoadingState({ label = 'Loading…' }: { label?: string }) {
       }}
     >
       <span className="spinner" />
-      <span className="mono" style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>{label}</span>
+      <span className="mono" style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
+        {label}
+      </span>
     </div>
   )
 }
@@ -32,9 +34,7 @@ export function EmptyState({ title, hint }: { title: string; hint?: ReactNode })
   return (
     <div className="panel" style={{ padding: 32, textAlign: 'center' }}>
       <p style={{ color: 'var(--ink-2)', fontSize: 14, fontWeight: 500, margin: 0 }}>{title}</p>
-      {hint && (
-        <div style={{ color: 'var(--ink-3)', fontSize: 12.5, marginTop: 6 }}>{hint}</div>
-      )}
+      {hint && <div style={{ color: 'var(--ink-3)', fontSize: 12.5, marginTop: 6 }}>{hint}</div>}
     </div>
   )
 }

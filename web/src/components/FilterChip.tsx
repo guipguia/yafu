@@ -25,7 +25,10 @@ export function FilterChip({ label, value, options, onChange }: Props) {
   const sel = options.find((o) => o[0] === value)
   return (
     <div ref={ref} style={{ position: 'relative' }}>
-      <button className={`filter ${value !== 'all' ? 'active' : ''}`} onClick={() => setOpen(!open)}>
+      <button
+        className={`filter ${value !== 'all' ? 'active' : ''}`}
+        onClick={() => setOpen(!open)}
+      >
         <span style={{ color: 'var(--ink-3)' }}>{label}:</span>
         {sel ? sel[1] : value}
         <Ic.chev />
@@ -63,10 +66,12 @@ export function FilterChip({ label, value, options, onChange }: Props) {
                 fontFamily: 'var(--font-mono)',
               }}
               onMouseEnter={(e) => {
-                if (v !== value) (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-3)'
+                if (v !== value)
+                  (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-3)'
               }}
               onMouseLeave={(e) => {
-                if (v !== value) (e.currentTarget as HTMLDivElement).style.background = 'transparent'
+                if (v !== value)
+                  (e.currentTarget as HTMLDivElement).style.background = 'transparent'
               }}
             >
               {l}
