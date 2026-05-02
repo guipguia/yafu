@@ -236,3 +236,29 @@ type DiffResponse struct {
 	Resources []DriftedResource `json:"resources"`
 	Note      string            `json:"note,omitempty"`
 }
+
+// PodInfo is one Pod that's a candidate target for log streaming. The
+// Logs tab lets the user pick from this list.
+type PodInfo struct {
+	Ns         string   `json:"ns"`
+	Name       string   `json:"name"`
+	Phase      string   `json:"phase"` // Pending | Running | Succeeded | Failed | Unknown
+	Containers []string `json:"containers"`
+	Restarts   int32    `json:"restarts"`
+	Age        string   `json:"age"`
+}
+
+// LogsResponse is the top-level shape of GET /api/v1/applications/.../logs.
+// Pods is every Pod in the application's inventory namespaces; Logs is the
+// raw last-N lines from the Selected pod (or the first available Pod when
+// the caller didn't specify one). Truncated indicates the caller hit the
+// per-request line cap.
+type LogsResponse struct {
+	AppID     string    `json:"appId"`
+	Pods      []PodInfo `json:"pods"`
+	Selected  string    `json:"selected,omitempty"` // ns/name of the pod whose logs were returned
+	Container string    `json:"container,omitempty"`
+	Logs      string    `json:"logs,omitempty"`
+	Truncated bool      `json:"truncated,omitempty"`
+	Note      string    `json:"note,omitempty"`
+}

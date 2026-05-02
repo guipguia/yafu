@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -38,6 +39,7 @@ type Entry struct {
 
 	Client    client.Client
 	Discovery discovery.DiscoveryInterface
+	Kube      kubernetes.Interface
 
 	statusMu sync.RWMutex
 	status   Status

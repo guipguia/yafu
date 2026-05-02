@@ -9,6 +9,7 @@ import type {
   DiffResponse,
   EventsResponse,
   ImageUpdatesResponse,
+  LogsResponse,
   ManifestResponse,
   SourcesResponse,
   TreeResponse,
@@ -76,6 +77,25 @@ export function useEvents(clusterId?: string) {
     queryKey: ['events', clusterId ?? 'all'],
     queryFn: () => fetchJSON<EventsResponse>(path),
     refetchInterval: POLL_MS,
+  })
+}
+
+export function useAppLogs(app: Application | null, pod?: string, container?: string, tail?: number) {
+  const path = app
+    ? (() => {
+        const base = `/api/v1/applications/${[app.clusterId, app.ns, app.kind, app.name].map(encodeURIComponent).join('/')}/logs`
+        const params = new URLSearchParams()
+        if (pod) params.set('pod', pod)
+        if (container) params.set('container', container)
+        if (tail) params.set('tail', String(tail))
+        return params.toString() ? `${base}?${params}` : base
+      })()
+    : ''
+  return useQuery<LogsResponse>({
+    queryKey: ['logs', app?.id ?? '', pod ?? '', container ?? '', tail ?? 0],
+    queryFn: () => fetchJSON<LogsResponse>(path),
+    refetchInterval: POLL_MS,
+    enabled: app != null,
   })
 }
 

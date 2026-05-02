@@ -64,7 +64,7 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return r.requeueAfter(ctx, &cr)
 	}
 
-	cl, disco, err := cluster.NewClients(cfg)
+	clients, err := cluster.NewClients(cfg)
 	if err != nil {
 		logger.Error(err, "build clients")
 		r.Registry.Delete(cr.Name)
@@ -79,8 +79,9 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		Region:        cr.Spec.Region,
 		Environment:   string(cr.Spec.Environment),
 		FluxNamespace: defaultIfEmpty(cr.Spec.FluxNamespace, "flux-system"),
-		Client:        cl,
-		Discovery:     disco,
+		Client:        clients.Client,
+		Discovery:     clients.Discovery,
+		Kube:          clients.Kube,
 	}
 
 	probeCtx, cancel := context.WithTimeout(ctx, 15*time.Second)

@@ -146,7 +146,7 @@ func (r *FileRegistry) addFromDiscovery(d DiscoverConfig) error {
 }
 
 func (r *FileRegistry) addFromRESTConfig(name string, c ClusterConfig, cfg *rest.Config) error {
-	cl, disco, err := NewClients(cfg)
+	clients, err := NewClients(cfg)
 	if err != nil {
 		return err
 	}
@@ -156,8 +156,9 @@ func (r *FileRegistry) addFromRESTConfig(name string, c ClusterConfig, cfg *rest
 		Region:        c.Region,
 		Environment:   c.Environment,
 		FluxNamespace: defaultIfEmpty(c.FluxNamespace, defaultFluxNamespace),
-		Client:        cl,
-		Discovery:     disco,
+		Client:        clients.Client,
+		Discovery:     clients.Discovery,
+		Kube:          clients.Kube,
 	}
 	r.entries[name] = e
 	r.order = append(r.order, name)

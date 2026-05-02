@@ -1,9 +1,10 @@
-import { useState, type ReactNode } from 'react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
 import type { Application } from '@/lib/types'
 import {
   useAppDiff,
   useAppEvents,
   useAppHistory,
+  useAppLogs,
   useAppManifest,
   useAppTree,
   useReconcileApp,
@@ -11,7 +12,7 @@ import {
   useSuspendApp,
 } from '@/lib/queries'
 import { StatusChip } from '@/components/StatusChip'
-import { ComingSoon, EmptyState, ErrorState, LoadingState } from '@/components/States'
+import { EmptyState, ErrorState, LoadingState } from '@/components/States'
 import { Ic } from '@/components/Icons'
 
 type Tab = 'overview' | 'tree' | 'diff' | 'events' | 'logs' | 'history' | 'yaml'
@@ -131,9 +132,7 @@ export function AppDetailDrawer({ app, onClose }: Props) {
           {tab === 'tree' && <TreeTab app={app} />}
           {tab === 'diff' && <DiffTab app={app} />}
           {tab === 'events' && <EventsTab app={app} />}
-          {tab === 'logs' && (
-            <div style={{ padding: 18 }}><ComingSoon feature="Live log tail" /></div>
-          )}
+          {tab === 'logs' && <LogsTab app={app} />}
           {tab === 'history' && <HistoryTab app={app} />}
           {tab === 'yaml' && <ManifestTab app={app} />}
         </div>
@@ -195,6 +194,130 @@ function OverviewTab({ app }: { app: Application }) {
       </div>
     </div>
   )
+}
+
+function LogsTab({ app }: { app: Application }) {
+  const [pod, setPod] = useState<string | undefined>(undefined)
+  const [container, setContainer] = useState<string | undefined>(undefined)
+  const { data, isLoading, error } = useAppLogs(app, pod, container, 200)
+
+  const pods = data?.pods ?? []
+  const logsText = data?.logs ?? ''
+  const note = data?.note ?? ''
+  const truncated = !!data?.truncated
+  const selectedPod = pods.find((p) => `${p.ns}/${p.name}` === data?.selected)
+  const containers = selectedPod?.containers ?? []
+
+  return (
+    <div style={{ padding: 18 }}>
+      <div className="panel" style={{ background: '#0a0c10', borderColor: '#1f2330' }}>
+        <div
+          className="panel-head"
+          style={{
+            background: 'transparent',
+            borderColor: '#1f2330',
+            flexWrap: 'wrap',
+            gap: 8,
+          }}
+        >
+          <div className="panel-title" style={{ color: 'oklch(80% 0 0)' }}>
+            <span className="lab" style={{ color: 'oklch(60% 0 0)' }}>Logs</span>
+            <select
+              value={pod ?? data?.selected ?? ''}
+              onChange={(e) => {
+                setPod(e.target.value || undefined)
+                setContainer(undefined)
+              }}
+              style={selectStyle}
+            >
+              {pods.length === 0 && <option value="">no pods discovered</option>}
+              {pods.map((p) => (
+                <option key={`${p.ns}/${p.name}`} value={`${p.ns}/${p.name}`}>
+                  {p.ns}/{p.name} · {p.phase}
+                  {p.restarts > 0 ? ` · ${p.restarts} restarts` : ''}
+                </option>
+              ))}
+            </select>
+            {containers.length > 1 && (
+              <select
+                value={container ?? data?.container ?? ''}
+                onChange={(e) => setContainer(e.target.value || undefined)}
+                style={{ ...selectStyle, marginLeft: 6 }}
+              >
+                {containers.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            )}
+          </div>
+          <div className="panel-actions">
+            {truncated && (
+              <span
+                className="mono"
+                style={{ fontSize: 10.5, color: 'oklch(78% 0.16 75)' }}
+              >
+                truncated · last 256 KiB
+              </span>
+            )}
+          </div>
+        </div>
+        <div
+          style={{
+            padding: 14,
+            fontFamily: 'var(--font-mono)',
+            fontSize: 11.5,
+            lineHeight: 1.65,
+            color: 'oklch(85% 0 0)',
+            minHeight: 360,
+            maxHeight: 540,
+            overflow: 'auto',
+            whiteSpace: 'pre',
+          }}
+        >
+          {isLoading && !logsText && (
+            <span style={{ color: 'oklch(60% 0 0)' }}>Loading…</span>
+          )}
+          {error && (
+            <span style={{ color: 'oklch(70% 0.18 25)' }}>error: {error.message}</span>
+          )}
+          {!isLoading && !error && pods.length === 0 && (
+            <span style={{ color: 'oklch(60% 0 0)' }}>
+              {note || 'No pods matched this application in its inventory namespaces.'}
+            </span>
+          )}
+          {logsText}
+          {!logsText && pods.length > 0 && !isLoading && (
+            <span style={{ color: 'oklch(60% 0 0)' }}>
+              # selected pod produced no log lines yet
+            </span>
+          )}
+        </div>
+        {note && (
+          <div
+            className="mono"
+            style={{
+              padding: '8px 14px',
+              fontSize: 11,
+              color: 'oklch(60% 0 0)',
+              borderTop: '1px solid #1f2330',
+            }}
+          >
+            note: {note}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+const selectStyle: CSSProperties = {
+  background: '#1a1d28',
+  color: 'oklch(85% 0 0)',
+  border: '1px solid #2a2e3a',
+  borderRadius: 4,
+  padding: '3px 8px',
+  fontSize: 11.5,
+  fontFamily: 'var(--font-mono)',
 }
 
 function DiffTab({ app }: { app: Application }) {

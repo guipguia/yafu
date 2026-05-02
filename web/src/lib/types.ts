@@ -212,6 +212,27 @@ export interface DiffResponse {
   note?: string
 }
 
+export interface PodInfo {
+  ns: string
+  name: string
+  /** Pending | Running | Succeeded | Failed | Unknown */
+  phase: string
+  containers: string[]
+  restarts: number
+  age: string
+}
+
+export interface LogsResponse {
+  appId: string
+  pods: PodInfo[]
+  /** "ns/name" of the pod whose logs were returned. */
+  selected?: string
+  container?: string
+  logs?: string
+  truncated?: boolean
+  note?: string
+}
+
 // ---------- Drawer placeholder types (mock until v0.2 wires real data) ----------
 
 export type EventKind = 'ok' | 'warn' | 'err'
