@@ -22,14 +22,15 @@ jobs:
       - name: go vet
         run: go vet ./...
       - name: golangci-lint
-        # v6 with version: latest historically resolves to v1.64.x,
-        # which was built with Go 1.24 and refuses to lint a module
-        # that targets Go 1.26 (our go.mod, pinned by helm.sh/helm/v3
-        # and go.opentelemetry.io/otel). Pin to v2.x — built with a
-        # newer Go and supports everything >= 1.22.
+        # The linter binary must be built with a Go >= go.mod's `go`
+        # directive (1.26). golangci-lint v2.12.x is the first
+        # 2.x line built with 1.26; older 2.x versions fail with
+        # "language version (1.25) is lower than targeted (1.26)".
+        # Pin to the latest 2.12 so a future linter regression
+        # doesn't silently change behaviour.
         uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.5.0
+          version: v2.12.1
           args: --timeout=5m
 
   test-go:
