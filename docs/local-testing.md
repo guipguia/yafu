@@ -112,23 +112,27 @@ What to verify:
 ## Path B — in-cluster deploy
 
 Build the image locally and load it into the kind cluster (no
-registry needed):
+registry needed). **Note** — the `--name yafu-test` flag is required;
+without it `kind load` defaults to the cluster named `kind` and
+fails with "no nodes found for cluster 'kind'".
 
 ```bash
-make image
-kind load docker-image ghcr.io/guipguia/yafu:dev --name yafu-test
+make image                         # builds both :$(VERSION) and :latest
+kind get clusters                  # confirm "yafu-test" is listed
+kind load docker-image ghcr.io/guipguia/yafu:latest --name yafu-test
 ```
 
 Install via helm. The bundled chart ships RBAC and a Cluster CRD.
-Override the image to use the locally-loaded `:dev` tag and disable
-the image pull (kind has it loaded directly):
+Pin the image to the locally-loaded `:latest` tag and prevent kind
+from trying to re-pull (it can't reach the registry from inside the
+cluster network):
 
 ```bash
 helm install yafu charts/yafu \
   --namespace yafu-system --create-namespace \
   --set image.repository=ghcr.io/guipguia/yafu \
-  --set image.tag=dev \
-  --set image.pullPolicy=IfNotPresent \
+  --set image.tag=latest \
+  --set image.pullPolicy=Never \
   --set clusterMode=crd
 ```
 
