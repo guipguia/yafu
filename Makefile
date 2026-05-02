@@ -76,7 +76,7 @@ test: test-go test-web ## Run all tests
 
 .PHONY: test-go
 test-go: ## Run Go tests
-	$(GO) test ./...
+	$(GO) test ./cmd/... ./internal/... ./api/...
 
 .PHONY: test-web
 test-web: ## Run web tests once

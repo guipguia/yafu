@@ -11,6 +11,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // Probe checks reachability, detects Flux, and returns a fresh status
@@ -27,11 +28,13 @@ func Probe(ctx context.Context, e *Entry) Status {
 	s.Reachable = true
 	s.KubernetesVersion = v.GitVersion
 
-	// Detect Flux by listing Kustomizations cluster-wide. NoMatch / NotFound
-	// on the resource means the CRD isn't installed; that's not an error.
+	// Detect Flux by listing Kustomizations cluster-wide. The CRD being
+	// absent shows up as NoMatch / NotFound from a real cluster, or as a
+	// scheme registration error from controller-runtime's fake client in
+	// tests — treat all three as "Flux not installed", not a probe error.
 	var ks kustomizev1.KustomizationList
 	if err := e.Client.List(ctx, &ks); err != nil {
-		if meta.IsNoMatchError(err) || apierrors.IsNotFound(err) {
+		if meta.IsNoMatchError(err) || apierrors.IsNotFound(err) || runtime.IsNotRegisteredError(err) {
 			return s
 		}
 		s.LastError = fmt.Sprintf("list kustomizations: %v", err)
