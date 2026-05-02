@@ -37,7 +37,7 @@ func (h *streamHandler) serve(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Accel-Buffering", "no")
 
 	// Tell the client we're alive before any informers fire.
-	fmt.Fprintf(w, "event: hello\ndata: {}\n\n")
+	_, _ = fmt.Fprintf(w, "event: hello\ndata: {}\n\n")
 	flusher.Flush()
 
 	heartbeat := time.NewTicker(15 * time.Second)
@@ -72,10 +72,10 @@ func (h *streamHandler) serve(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				continue
 			}
-			fmt.Fprintf(w, "event: invalidate\ndata: %s\n\n", b)
+			_, _ = fmt.Fprintf(w, "event: invalidate\ndata: %s\n\n", b)
 			flusher.Flush()
 		case t := <-heartbeat.C:
-			fmt.Fprintf(w, ": ping %d\n\n", t.Unix())
+			_, _ = fmt.Fprintf(w, ": ping %d\n\n", t.Unix())
 			flusher.Flush()
 		}
 	}

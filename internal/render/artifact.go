@@ -83,7 +83,7 @@ func FetchAndExtract(ctx context.Context, ref ArtifactRef) (root string, cleanup
 	if err != nil {
 		return "", nil, fmt.Errorf("fetch artifact: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return "", nil, fmt.Errorf("artifact fetch returned %d", resp.StatusCode)
 	}
@@ -138,7 +138,7 @@ func extractTarGz(blob []byte, dir string) error {
 	if err != nil {
 		return fmt.Errorf("gzip reader: %w", err)
 	}
-	defer gz.Close()
+	defer func() { _ = gz.Close() }()
 	tr := tar.NewReader(gz)
 
 	for {

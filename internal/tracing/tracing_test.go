@@ -35,14 +35,13 @@ func TestSetup_NoEndpointIsNoop(t *testing.T) {
 	}
 
 	// Tracer() must return a working (no-op) tracer regardless of
-	// whether Setup configured anything.
+	// whether Setup configured anything. We're not asserting span
+	// validity (no-op spans deliberately produce invalid contexts);
+	// the only check is that Tracer() returns something usable and
+	// span.End() doesn't panic.
 	tr := Tracer()
 	_, span := tr.Start(context.Background(), "test")
 	span.End()
-	if !span.SpanContext().IsValid() && !span.SpanContext().IsSampled() {
-		// noop spans report invalid+unsampled, which is fine — the
-		// only thing we're checking is that Tracer() didn't panic.
-	}
 }
 
 // TestSetup_BadEndpointReturnsError covers the failure branch

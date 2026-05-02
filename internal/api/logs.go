@@ -264,7 +264,7 @@ func fetchPodLogs(ctx context.Context, kube kubernetes.Interface, ns, name, cont
 	if err != nil {
 		return "", false, err
 	}
-	defer stream.Close()
+	defer func() { _ = stream.Close() }()
 
 	limited := io.LimitReader(stream, maxLogBytes+1)
 	data, err := io.ReadAll(limited)
@@ -336,7 +336,7 @@ func (h *applicationsHandler) logsStream(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusBadGateway, "could not open log stream: "+err.Error())
 		return
 	}
-	defer stream.Close()
+	defer func() { _ = stream.Close() }()
 
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")

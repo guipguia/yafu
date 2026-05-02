@@ -166,13 +166,8 @@ func isFluxEvent(ev *corev1.Event) bool {
 func eventToDTO(e *cluster.Entry, ev *corev1.Event) types.Event {
 	t := eventTimestamp(ev)
 	kind := "ok"
-	switch ev.Type {
-	case corev1.EventTypeWarning:
+	if ev.Type == corev1.EventTypeWarning {
 		kind = "err"
-	case "Info":
-		kind = "ok"
-	default:
-		kind = "ok"
 	}
 
 	return types.Event{

@@ -34,7 +34,7 @@ func TestFetchAndExtract_HappyPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fetch: %v", err)
 	}
-	defer cleanup()
+	defer func() { _ = cleanup() }()
 
 	got, err := os.ReadFile(filepath.Join(root, "kustomize", "deployment.yaml"))
 	if err != nil {

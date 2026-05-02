@@ -86,7 +86,7 @@ func decodeHelmReleaseSecret(s *corev1.Secret) (*helmReleaseStorage, error) {
 		if err != nil {
 			return nil, fmt.Errorf("gzip reader: %w", err)
 		}
-		defer gz.Close()
+		defer func() { _ = gz.Close() }()
 		decoded, err = io.ReadAll(gz)
 		if err != nil {
 			return nil, fmt.Errorf("gunzip: %w", err)
