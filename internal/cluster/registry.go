@@ -41,6 +41,18 @@ type Entry struct {
 	Discovery discovery.DiscoveryInterface
 	Kube      kubernetes.Interface
 
+	// Generation is the spec.generation of the Cluster CR this entry
+	// was built from. CRDRegistry uses it to decide whether a fresh
+	// reconcile needs to rebuild Clients (expensive — invalidates
+	// watch streams and discovery cache) or can reuse the existing
+	// entry. Zero in file-mode where the concept doesn't apply.
+	Generation int64
+	// BuiltAt is when Clients was constructed; combined with Generation
+	// to force a periodic rebuild even when the spec hasn't changed,
+	// so credential rotation in a kubeconfig Secret eventually takes
+	// effect without waiting for an operator to bump the spec.
+	BuiltAt time.Time
+
 	statusMu sync.RWMutex
 	status   Status
 }

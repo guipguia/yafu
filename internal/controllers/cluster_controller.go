@@ -19,6 +19,13 @@ import (
 	"github.com/guipguia/yafu/internal/cluster"
 )
 
+// clientCacheMaxAge bounds how long we keep reusing a built
+// client.WithWatch when the Cluster spec hasn't changed. Forces a
+// rebuild after this duration so credential rotation in a
+// kubeconfig Secret eventually takes effect without an operator
+// having to bump the Cluster spec.
+const clientCacheMaxAge = 5 * time.Minute
+
 // ClusterReconciler reconciles yafu.io Cluster resources, building a per-cluster
 // client and probing reachability + Flux installation, then publishing the
 // Entry to the in-memory CRDRegistry the HTTP API reads from.
@@ -55,40 +62,57 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 
-	cfg, credErr := r.resolveConnection(ctx, cr.Spec.Connection)
-	if credErr != nil {
-		logger.Error(credErr, "resolve connection")
-		r.Registry.Delete(cr.Name)
-		r.setReachable(&cr, false, "CredentialsError", credErr.Error())
-		r.setReady(&cr, false, "CredentialsError", credErr.Error())
-		return r.requeueAfter(ctx, &cr)
-	}
+	// Reuse the existing entry — and its live watch streams — when
+	// the spec hasn't changed and the cached client isn't stale.
+	// Rebuilding tears down the controller-runtime client and the
+	// per-cluster watchers in watch.Manager, which we want to avoid
+	// on the routine 30s probe cycle.
+	existing, hasExisting := r.Registry.Get(cr.Name)
+	needRebuild := !hasExisting ||
+		existing.Generation != cr.Generation ||
+		time.Since(existing.BuiltAt) > clientCacheMaxAge
 
-	clients, err := cluster.NewClients(cfg)
-	if err != nil {
-		logger.Error(err, "build clients")
-		r.Registry.Delete(cr.Name)
-		r.setReachable(&cr, false, "ClientBuildError", err.Error())
-		r.setReady(&cr, false, "ClientBuildError", err.Error())
-		return r.requeueAfter(ctx, &cr)
-	}
+	var e *cluster.Entry
+	if needRebuild {
+		cfg, credErr := r.resolveConnection(ctx, cr.Spec.Connection)
+		if credErr != nil {
+			logger.Error(credErr, "resolve connection")
+			r.Registry.Delete(cr.Name)
+			r.setReachable(&cr, false, "CredentialsError", credErr.Error())
+			r.setReady(&cr, false, "CredentialsError", credErr.Error())
+			return r.requeueAfter(ctx, &cr)
+		}
 
-	e := &cluster.Entry{
-		Name:          cr.Name,
-		DisplayName:   defaultIfEmpty(cr.Spec.DisplayName, cr.Name),
-		Region:        cr.Spec.Region,
-		Environment:   string(cr.Spec.Environment),
-		FluxNamespace: defaultIfEmpty(cr.Spec.FluxNamespace, "flux-system"),
-		Client:        clients.Client,
-		Discovery:     clients.Discovery,
-		Kube:          clients.Kube,
+		clients, err := cluster.NewClients(cfg)
+		if err != nil {
+			logger.Error(err, "build clients")
+			r.Registry.Delete(cr.Name)
+			r.setReachable(&cr, false, "ClientBuildError", err.Error())
+			r.setReady(&cr, false, "ClientBuildError", err.Error())
+			return r.requeueAfter(ctx, &cr)
+		}
+
+		e = &cluster.Entry{
+			Name:          cr.Name,
+			DisplayName:   defaultIfEmpty(cr.Spec.DisplayName, cr.Name),
+			Region:        cr.Spec.Region,
+			Environment:   string(cr.Spec.Environment),
+			FluxNamespace: defaultIfEmpty(cr.Spec.FluxNamespace, "flux-system"),
+			Client:        clients.Client,
+			Discovery:     clients.Discovery,
+			Kube:          clients.Kube,
+			Generation:    cr.Generation,
+			BuiltAt:       time.Now(),
+		}
+		r.Registry.Set(cr.Name, e)
+	} else {
+		e = existing
 	}
 
 	probeCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	st := cluster.Probe(probeCtx, e)
 	e.SetStatus(st)
-	r.Registry.Set(cr.Name, e)
 
 	cr.Status.ObservedGeneration = cr.Generation
 	cr.Status.KubernetesVersion = st.KubernetesVersion
