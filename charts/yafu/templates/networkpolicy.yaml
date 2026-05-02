@@ -1,0 +1,45 @@
+{{- if .Values.networkPolicy.create -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "yafu.fullname" . }}
+  labels:
+    {{- include "yafu.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "yafu.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        {{- if and (empty .Values.networkPolicy.ingressNamespaces) (empty .Values.networkPolicy.ingressPodLabels) }}
+        # Empty `from` field allows ingress from any namespace + any pod.
+        # Tighten by setting networkPolicy.ingressNamespaces or
+        # networkPolicy.ingressPodLabels in values.
+        []
+        {{- else }}
+        {{- range .Values.networkPolicy.ingressNamespaces }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ . }}
+        {{- end }}
+        {{- if .Values.networkPolicy.ingressPodLabels }}
+        - podSelector:
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.ingressPodLabels | nindent 14 }}
+        {{- end }}
+        {{- end }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.service.targetPort }}
+  # Allow all egress. Yafu legitimately needs to reach the in-cluster
+  # API server, every registered remote cluster, optionally an OIDC
+  # issuer, source-controller's artifact server, and Notification
+  # webhooks — that surface is environment-specific and a wrong
+  # default here would silently break the product. Operators who
+  # want stricter egress should layer their own NetworkPolicy.
+  egress:
+    - {}
+{{- end }}

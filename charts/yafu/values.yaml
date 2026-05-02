@@ -129,3 +129,47 @@ env: []
 nodeSelector: {}
 tolerations: []
 affinity: {}
+
+# NetworkPolicy that allows ingress to yafu's HTTP port and leaves
+# egress open. Egress isn't constrained because yafu legitimately
+# reaches a wide and environment-specific set of endpoints (the
+# in-cluster API server, every registered remote cluster, an OIDC
+# IdP, source-controller's artifact server, optional Notification
+# webhooks, …). Operators with stricter requirements should layer
+# their own egress NetworkPolicy on top.
+#
+# Disabled by default — the chart can't tell whether a NetworkPolicy
+# implementation is installed on the cluster.
+networkPolicy:
+  create: false
+  # When set, restricts ingress to pods in these namespaces. Empty
+  # means "any namespace" — appropriate when an Ingress controller
+  # in an unknown namespace fronts yafu.
+  ingressNamespaces: []
+  # podSelectors lets you also require ingress to come from pods
+  # carrying specific labels. Empty means "any pod".
+  ingressPodLabels: {}
+
+# ServiceMonitor for prometheus-operator. Requires
+# monitoring.coreos.com CRDs (ServiceMonitor) to be installed on
+# the cluster — the chart doesn't validate this.
+serviceMonitor:
+  create: false
+  interval: 30s
+  scrapeTimeout: 10s
+  # Extra labels to set on the ServiceMonitor; commonly used to
+  # match a Prometheus instance's serviceMonitorSelector.
+  labels: {}
+  # honorLabels is appropriate when scraping yafu's per-cluster
+  # metrics — the labels on the metrics describe REMOTE cluster
+  # state and Prometheus shouldn't overwrite the `cluster` label
+  # with the local one.
+  honorLabels: true
+
+# PodDisruptionBudget protects yafu pods during voluntary
+# disruption (node drain, autoscaler eviction). Use either
+# minAvailable or maxUnavailable, not both.
+podDisruptionBudget:
+  create: false
+  minAvailable: 1
+  # maxUnavailable: 0

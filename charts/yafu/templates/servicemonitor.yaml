@@ -1,0 +1,30 @@
+{{- if .Values.serviceMonitor.create -}}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "yafu.fullname" . }}
+  labels:
+    {{- include "yafu.labels" . | nindent 4 }}
+    {{- with .Values.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "yafu.selectorLabels" . | nindent 6 }}
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  endpoints:
+    # yafu serves /metrics on the same HTTP port as the API.
+    - port: http
+      path: /metrics
+      interval: {{ .Values.serviceMonitor.interval | default "30s" }}
+      scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout | default "10s" }}
+      {{- if .Values.serviceMonitor.honorLabels }}
+      # Per-cluster metrics carry a `cluster` label whose value is the
+      # remote cluster's registry id. honorLabels keeps Prometheus
+      # from overwriting it with the local pod's namespace label.
+      honorLabels: true
+      {{- end }}
+{{- end }}
