@@ -49,6 +49,18 @@ rules:
       - helmreleases
     verbs: ["get", "list", "watch", "patch"]
 
+  # The HelmRelease resource tree is walked by reading the Helm storage
+  # Secret directly (sh.helm.release.v1.<name>.v<version>) — helm-controller
+  # doesn't expose the inventory on the resource itself. Only "get" is
+  # required: names are deterministic from the HelmRelease status, so we
+  # never need to list/watch. Operators paranoid about cluster-wide Secret
+  # read can scope this down to per-namespace RoleBindings; the broad
+  # ClusterRole here is the simplest setup for the in-cluster default.
+  - apiGroups: [""]
+    resources:
+      - secrets
+    verbs: ["get"]
+
   - apiGroups: ["notification.toolkit.fluxcd.io"]
     resources:
       - alerts

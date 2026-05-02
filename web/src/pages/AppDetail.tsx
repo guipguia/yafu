@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import type {
   Application,
   RenderResource,
@@ -10,12 +10,12 @@ import {
   useAppHistory,
   useAppLogs,
   useAppManifest,
+  useAppRender,
   useAppTree,
   useReconcileApp,
   useResumeApp,
   useSuspendApp,
 } from '@/lib/queries'
-import { mockRenderResponse } from '@/lib/renderMock'
 import { StatusChip } from '@/components/StatusChip'
 import { EmptyState, ErrorState, LoadingState } from '@/components/States'
 import { Ic } from '@/components/Icons'
@@ -642,31 +642,24 @@ function DriftTab({ app }: { app: Application }) {
   )
 }
 
-// RenderDiffTab is the rendered Git-vs-cluster diff view. The
-// backend endpoint isn't built yet; we render against a mock
-// fixture and show a "Preview" banner so reviewers know the data
-// isn't real. Once /api/v1/applications/.../render lands, the
-// useAppRender result replaces the mock with no changes here.
+// RenderDiffTab is the rendered Git-vs-cluster diff view. It hits
+// /api/v1/applications/.../render via useAppRender. The backend
+// returns 501 today (the stub); when the real handler lands the
+// view renders the response without code changes here.
 function RenderDiffTab({ app }: { app: Application }) {
-  const data = useMemo(() => mockRenderResponse(app), [app])
+  const { data, isLoading, error } = useAppRender(app)
   const [selectedIdx, setSelectedIdx] = useState(0)
   const [layout, setLayout] = useState<'split' | 'unified'>('split')
 
+  if (isLoading) return <RenderLoadingState />
+  if (error || !data) return <RenderUnavailableState message={error?.message} />
+
   const resources = data.resources
-  const counts = useMemo(() => countByStatus(resources), [resources])
+  const counts = countByStatus(resources)
   const selected = resources[selectedIdx] ?? resources[0]
 
   return (
     <div className="render-diff">
-      <div className="render-preview-banner">
-        <Ic.warn aria-hidden="true" />
-        <span>
-          <strong>Preview</strong> — backend rendering not yet implemented; showing example
-          data. The real diff lands in v0.4 once <code>kustomize build</code> /{' '}
-          <code>helm template</code> rendering is wired in.
-        </span>
-      </div>
-
       <div className="diff-tab-head">
         <div className="src-meta" aria-label="Source revision">
           <Ic.git aria-hidden="true" />
@@ -1055,6 +1048,64 @@ function RenderErrorState({ resource }: { resource: RenderResource }) {
       <h4>Source render failed</h4>
       <p>Flux couldn't render the manifest for this resource. The diff is unavailable until the build error is resolved.</p>
       <pre className="err-output" role="alert">{resource.renderError ?? '(no output)'}</pre>
+    </div>
+  )
+}
+
+// RenderUnavailableState is shown when /api/v1/applications/.../render
+// returns 501 (the current stub) or any other error. It's intentionally
+// honest: the rendered diff isn't built yet, and the working diff lives
+// in the Drift sub-tab. When the backend lands and starts returning 200,
+// this state stops appearing.
+function RenderUnavailableState({ message }: { message?: string }) {
+  return (
+    <div className="render-diff">
+      <div
+        className="state info"
+        style={{ marginTop: 14, marginLeft: 18, marginRight: 18 }}
+      >
+        <div className="ico-wrap" aria-hidden="true">
+          <Ic.warn />
+        </div>
+        <h4>Rendered diff not yet available</h4>
+        <p>
+          The Git-vs-cluster view requires the backend to render the source
+          (<code>kustomize build</code> or <code>helm template</code>) at the
+          current revision and diff every resource against the live cluster.
+          That work is the next slice — see the project roadmap.
+        </p>
+        <p>
+          For now, switch to the <strong>Drift</strong> sub-tab — it shows
+          field-ownership drift against what Flux last applied, which catches
+          the most common case (someone ran <code>kubectl edit</code> on a
+          managed resource).
+        </p>
+        {message && (
+          <pre className="err-output" role="alert" style={{ maxWidth: 520 }}>
+            {message}
+          </pre>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function RenderLoadingState() {
+  return (
+    <div className="render-diff">
+      <div
+        className="state info"
+        style={{ marginTop: 14, marginLeft: 18, marginRight: 18 }}
+      >
+        <div className="ico-wrap" aria-hidden="true">
+          <Ic.refresh />
+        </div>
+        <h4>Rendering source…</h4>
+        <p>
+          <code>kustomize build</code> can take 1–10s. We'll show the diff as
+          soon as the manifest is ready.
+        </p>
+      </div>
     </div>
   )
 }
