@@ -7,6 +7,7 @@ import type {
   AppHistoryResponse,
   ClustersResponse,
   EventsResponse,
+  ImageUpdatesResponse,
   ManifestResponse,
   SourcesResponse,
   TreeResponse,
@@ -51,6 +52,17 @@ export function useAlerts(clusterId?: string) {
   return useQuery<AlertsResponse>({
     queryKey: ['alerts', clusterId ?? 'all'],
     queryFn: () => fetchJSON<AlertsResponse>(path),
+    refetchInterval: POLL_MS,
+  })
+}
+
+export function useImageUpdates(clusterId?: string) {
+  const path = clusterId
+    ? `/api/v1/image-updates?cluster=${encodeURIComponent(clusterId)}`
+    : '/api/v1/image-updates'
+  return useQuery<ImageUpdatesResponse>({
+    queryKey: ['image-updates', clusterId ?? 'all'],
+    queryFn: () => fetchJSON<ImageUpdatesResponse>(path),
     refetchInterval: POLL_MS,
   })
 }

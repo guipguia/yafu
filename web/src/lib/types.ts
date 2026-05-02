@@ -165,6 +165,27 @@ export interface ManifestResponse {
   yaml: string
 }
 
+export interface ImageUpdate {
+  id: string
+  name: string
+  cluster: string
+  clusterId: string
+  ns: string
+  image: string
+  latestTag?: string
+  /** "semver:RANGE" | "alphabetical" | "numerical" | "" */
+  policy: string
+  /** ready | failing | progressing */
+  status: string
+  age: string
+  message?: string
+}
+
+export interface ImageUpdatesResponse {
+  updates: ImageUpdate[]
+  errors?: ClusterError[]
+}
+
 // ---------- Drawer placeholder types (mock until v0.2 wires real data) ----------
 
 export type EventKind = 'ok' | 'warn' | 'err'

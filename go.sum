@@ -17,6 +17,10 @@ github.com/evanphx/json-patch/v5 v5.9.11 h1:/8HVnzMq13/3x9TPvjG08wUGqBTmZBsCWzjT
 github.com/evanphx/json-patch/v5 v5.9.11/go.mod h1:3j+LviiESTElxA4p3EMKAB9HXj3/XEtnUf6OZxqIQTM=
 github.com/fluxcd/helm-controller/api v1.5.4 h1:wbAwD+cSGBZEhT3qq1naBKkitdNbqRtWQUFNA3XTXOc=
 github.com/fluxcd/helm-controller/api v1.5.4/go.mod h1:lTgeUmtVYExMKp7mRDncsr4JwHTz3LFtLjRJZeR98lI=
+github.com/fluxcd/image-automation-controller/api v1.1.2 h1:Maa4qycz+iBCN/yJv9xNvuuj2IYihDAsSVwpHLhxkuk=
+github.com/fluxcd/image-automation-controller/api v1.1.2/go.mod h1:lkD/drkD6Wc+2SDjVj5KqfozEucTLFexWgby/5ft660=
+github.com/fluxcd/image-reflector-controller/api v1.1.1 h1:4Bj1abzVnjj8+b/293kNeFMRJc+y2wO8Z12ReZ/gA0w=
+github.com/fluxcd/image-reflector-controller/api v1.1.1/go.mod h1:j4JSIocL42HQ77Veg1t60sApOy+lng8/cbXHXGSnfi0=
 github.com/fluxcd/kustomize-controller/api v1.8.4 h1:13+9CgxGj67Bn7wzFILw8S4r4urEgiLTODwjA4XU0mU=
 github.com/fluxcd/kustomize-controller/api v1.8.4/go.mod h1:c/mUPIffDDLg1EicXCJtX4N/rc+z5Zh0e/CXjhd7Dyc=
 github.com/fluxcd/notification-controller/api v1.8.4 h1:KhHHVhQNtQsY+cVm/Y/8vhhFfrEOxM2AL/8JF8LAjMg=

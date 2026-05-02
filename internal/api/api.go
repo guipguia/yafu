@@ -55,4 +55,7 @@ func RegisterAPI(mux *http.ServeMux, deps Deps) {
 
 	eh := &eventsHandler{registry: deps.Registry, policy: deps.Policy}
 	mux.HandleFunc("GET /api/v1/events", eh.list)
+
+	ih := &imageUpdatesHandler{registry: deps.Registry, policy: deps.Policy}
+	mux.HandleFunc("GET /api/v1/image-updates", ih.list)
 }

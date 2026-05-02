@@ -178,3 +178,28 @@ type ManifestResponse struct {
 	Kind  string `json:"kind"`
 	YAML  string `json:"yaml"`
 }
+
+// ImageUpdate is one ImagePolicy joined with its referenced
+// ImageRepository.
+type ImageUpdate struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Cluster   string `json:"cluster"`
+	ClusterID string `json:"clusterId"`
+	Ns        string `json:"ns"`
+	Image     string `json:"image"`
+	LatestTag string `json:"latestTag,omitempty"`
+	// Policy is one of "semver:RANGE", "alphabetical", "numerical", or "" if
+	// the policy is malformed.
+	Policy  string `json:"policy"`
+	Status  string `json:"status"` // ready | failing | progressing
+	Age     string `json:"age"`
+	Message string `json:"message,omitempty"`
+}
+
+// ImageUpdatesResponse is the top-level shape of
+// GET /api/v1/image-updates.
+type ImageUpdatesResponse struct {
+	Updates []ImageUpdate  `json:"updates"`
+	Errors  []ClusterError `json:"errors,omitempty"`
+}
