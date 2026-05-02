@@ -1,0 +1,21 @@
+# Force LF line endings for all text files so Windows + WSL contributors
+# don't churn diffs via core.autocrlf. Binary files are explicitly excluded.
+
+* text=auto eol=lf
+
+# Treat lockfiles + generated artifacts as text but keep them stable.
+*.lock text eol=lf
+go.sum text eol=lf
+
+# Binary types
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+
+# Shell scripts and entrypoints must use LF.
+*.sh text eol=lf
+Makefile text eol=lf
+Dockerfile text eol=lf
