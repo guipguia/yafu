@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apitypes "github.com/guipguia/yafu/internal/api/types"
@@ -75,7 +76,7 @@ func (h *applicationsHandler) tree(w http.ResponseWriter, r *http.Request) {
 		Nodes: []apitypes.TreeNode{},
 	}
 
-	entries, note := inventoryEntriesOf(obj)
+	entries, note := inventoryEntriesOf(ctx, e.Kube, obj)
 	resp.Note = note
 	if len(entries) == 0 {
 		_ = json.NewEncoder(w).Encode(resp)
@@ -105,9 +106,14 @@ type inventoryRef struct {
 
 // inventoryEntriesOf returns the inventory of a Kustomization or
 // HelmRelease as parsed refs. The returned note is non-empty when the
-// inventory hasn't been populated yet, or when the kind doesn't expose
-// a parseable inventory at all (HelmRelease today — see v0.3 note).
-func inventoryEntriesOf(obj any) ([]inventoryRef, string) {
+// inventory hasn't been populated yet (resource never reconciled, Helm
+// release Secret missing, etc).
+//
+// Kustomization reads status.inventory directly. HelmRelease pulls the
+// rendered manifest out of Helm's storage Secret
+// (sh.helm.release.v1.<name>.v<version>) — kube must be non-nil for
+// that path.
+func inventoryEntriesOf(ctx context.Context, kube kubernetes.Interface, obj any) ([]inventoryRef, string) {
 	switch v := obj.(type) {
 	case *kustomizev1.Kustomization:
 		if v.Status.Inventory == nil || len(v.Status.Inventory.Entries) == 0 {
@@ -122,11 +128,14 @@ func inventoryEntriesOf(obj any) ([]inventoryRef, string) {
 		return out, ""
 
 	case *helmv2.HelmRelease:
-		// helm-controller v2 stores per-snapshot inventories in
-		// Helm's own storage Secret, not on the HelmRelease status.
-		// Walking that lands in v0.3.
-		_ = v
-		return nil, "HelmRelease resource tree lands in v0.3 — requires reading Helm's release storage"
+		if kube == nil {
+			return nil, "HelmRelease inventory requires the kubernetes clientset"
+		}
+		refs, note, err := helmReleaseInventory(ctx, kube, v)
+		if err != nil {
+			return nil, fmt.Sprintf("Helm release inventory: %v", err)
+		}
+		return refs, note
 	}
 	return nil, ""
 }

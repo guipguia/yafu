@@ -80,10 +80,12 @@ func (h *applicationsHandler) logs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entries, _ := inventoryEntriesOf(obj)
+	entries, _ := inventoryEntriesOf(ctx, e.Kube, obj)
 	namespaces := uniqueInventoryNamespaces(entries)
 	if len(namespaces) == 0 {
-		// HelmRelease v0.1 returns no inventory; fall back to the resource's own namespace.
+		// Fallback when inventory is unavailable (HelmRelease never installed,
+		// Kustomization never reconciled, etc.) — at least try the resource's
+		// own namespace.
 		namespaces = []string{ns}
 		resp.Note = "Inventory unavailable; listing pods in the application's own namespace as a fallback."
 	}

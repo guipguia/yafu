@@ -80,7 +80,7 @@ func (h *applicationsHandler) diff(w http.ResponseWriter, r *http.Request) {
 		Note:      "v0.1 surfaces field-ownership drift via metadata.managedFields. True Git-vs-cluster diff (kustomize build / helm render against the source) lands in v0.4.",
 	}
 
-	entries, _ := inventoryEntriesOf(obj)
+	entries, _ := inventoryEntriesOf(ctx, e.Kube, obj)
 	if len(entries) == 0 {
 		_ = json.NewEncoder(w).Encode(resp)
 		return
