@@ -19,14 +19,37 @@ To access the dashboard:
 ⚠ AUTH MODE IS 'ANONYMOUS' — every request is treated as the same
   unauthenticated user. Do not expose this deployment publicly.
 
-  For a real environment, set:
+  Two production options:
 
     auth:
       mode: header
+    # Put oauth2-proxy / Pomerium / your ingress's auth-snippet in front
+    # of yafu so it injects X-Forwarded-User / -Email / -Groups before
+    # requests reach the API.
 
-  and put oauth2-proxy / Pomerium / your ingress's auth-snippet in
-  front of yafu so it injects X-Forwarded-User / X-Forwarded-Email /
-  X-Forwarded-Groups before requests reach the API.
+    auth:
+      mode: oidc
+      oidc:
+        issuer: https://your-idp.example.com
+        clientId: yafu
+        redirectURL: https://yafu.example.com/auth/callback
+        secretRef: { name: yafu-oidc }
+    # yafu speaks the authorization-code-with-PKCE flow directly to your
+    # IdP. The Secret must contain `client_secret` (and optionally
+    # `cookie_secret`).
+{{- end }}
+
+{{- if eq (.Values.auth.mode | default "anonymous") "oidc" }}
+
+ℹ OIDC mode active. yafu performs discovery against
+  {{ .Values.auth.oidc.issuer }} at startup; misconfiguration shows up
+  as a startup error in `kubectl logs`.
+
+  Make sure the IdP has:
+    1. {{ .Values.auth.oidc.redirectURL }} registered as an
+       authorized redirect URI
+    2. The "{{ .Values.auth.oidc.groupsClaim | default "groups" }}"
+       claim included in the ID token (this varies by IdP)
 {{- end }}
 
 {{- if and (ne (.Values.auth.mode | default "anonymous") "anonymous") (not .Values.authzPolicy.policy) (not .Values.authzPolicy.existingConfigMap) }}

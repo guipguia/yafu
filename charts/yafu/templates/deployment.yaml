@@ -3,6 +3,18 @@
 {{- if and (not $rbacCM) .Values.authzPolicy.policy -}}
 {{- $rbacCM = printf "%s-rbac" (include "yafu.fullname" .) -}}
 {{- end -}}
+{{- $authMode := .Values.auth.mode | default "anonymous" -}}
+{{- $oidc := default (dict) .Values.auth.oidc -}}
+{{- $oidcSecretName := "" -}}
+{{- if eq $authMode "oidc" -}}
+{{- $oidcSecretName = (default (dict) $oidc.secretRef).name -}}
+{{- if not $oidc.issuer -}}{{- fail "auth.oidc.issuer is required when auth.mode=oidc" -}}{{- end -}}
+{{- if not $oidc.clientId -}}{{- fail "auth.oidc.clientId is required when auth.mode=oidc" -}}{{- end -}}
+{{- if not $oidc.redirectURL -}}{{- fail "auth.oidc.redirectURL is required when auth.mode=oidc" -}}{{- end -}}
+{{- if not $oidcSecretName -}}{{- fail "auth.oidc.secretRef.name is required when auth.mode=oidc" -}}{{- end -}}
+{{- end -}}
+{{- $clientSecretKey := (default (dict) $oidc.secretRef).clientSecretKey | default "client_secret" -}}
+{{- $cookieSecretKey := (default (dict) $oidc.secretRef).cookieSecretKey | default "cookie_secret" -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -42,11 +54,21 @@ spec:
             - --addr=:{{ .Values.service.targetPort }}
             - --log-level={{ .Values.logLevel }}
             - --cluster-mode={{ .Values.clusterMode | default "crd" }}
-            - --auth-mode={{ .Values.auth.mode | default "anonymous" }}
+            - --auth-mode={{ $authMode }}
             - --metrics-addr=0
             - --probe-addr=0
             {{- if $rbacCM }}
             - --rbac-file=/etc/yafu/rbac/{{ $rbacKey }}
+            {{- end }}
+            {{- if eq $authMode "oidc" }}
+            - --oidc-issuer={{ $oidc.issuer }}
+            - --oidc-client-id={{ $oidc.clientId }}
+            - --oidc-redirect-url={{ $oidc.redirectURL }}
+            - --oidc-scopes={{ $oidc.scopes | default "openid,email,profile,groups" }}
+            - --oidc-groups-claim={{ $oidc.groupsClaim | default "groups" }}
+            - --oidc-secure-cookie={{ ternary "true" "false" (default true $oidc.secureCookie) }}
+            - --oidc-client-secret-file=/etc/yafu/oidc/{{ $clientSecretKey }}
+            - --oidc-cookie-secret-file=/etc/yafu/oidc/{{ $cookieSecretKey }}
             {{- end }}
           ports:
             - name: http
@@ -72,17 +94,32 @@ spec:
             {{- with .Values.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
-          {{- if $rbacCM }}
+          {{- if or $rbacCM (eq $authMode "oidc") }}
           volumeMounts:
+            {{- if $rbacCM }}
             - name: rbac
               mountPath: /etc/yafu/rbac
               readOnly: true
+            {{- end }}
+            {{- if eq $authMode "oidc" }}
+            - name: oidc
+              mountPath: /etc/yafu/oidc
+              readOnly: true
+            {{- end }}
           {{- end }}
-      {{- if $rbacCM }}
+      {{- if or $rbacCM (eq $authMode "oidc") }}
       volumes:
+        {{- if $rbacCM }}
         - name: rbac
           configMap:
             name: {{ $rbacCM }}
+        {{- end }}
+        {{- if eq $authMode "oidc" }}
+        - name: oidc
+          secret:
+            secretName: {{ $oidcSecretName }}
+            optional: false
+        {{- end }}
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

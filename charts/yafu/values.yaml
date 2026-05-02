@@ -72,9 +72,42 @@ rbac:
 #                  reverse proxy (oauth2-proxy, Pomerium, ingress
 #                  auth-snippet, …). The proxy MUST strip these headers
 #                  from the public Internet — yafu trusts what arrives.
-#   - "oidc"       native OIDC. Not yet implemented.
+#   - "oidc"       native OIDC. yafu speaks the authorization-code-with-PKCE
+#                  flow directly to your IdP. See `auth.oidc` below.
 auth:
   mode: anonymous
+
+  # Used when mode=oidc. The Helm chart will add the matching --oidc-* flags
+  # to the Deployment and mount referenced Secrets into the pod.
+  oidc:
+    # Discovery URL of the IdP — must serve /.well-known/openid-configuration.
+    # Examples: https://accounts.google.com, https://dex.example.com,
+    #           https://your-tenant.okta.com
+    issuer: ""
+    clientId: ""
+
+    # Public URL where /auth/callback is reachable. Must match exactly
+    # what's registered with the IdP.
+    redirectURL: ""
+
+    scopes: "openid,email,profile,groups"
+    groupsClaim: "groups"
+
+    # Set to false only for HTTP dev; production deployments behind HTTPS
+    # ingress should keep this true so cookies aren't sent over plain HTTP.
+    secureCookie: true
+
+    # Secret holding the OIDC client_secret and (optionally) a cookie-signing
+    # secret. The chart mounts the referenced Secret at /etc/yafu/oidc/ and
+    # passes --oidc-client-secret-file / --oidc-cookie-secret-file pointing
+    # at the mounted keys.
+    #
+    # Recommended: create the Secret out-of-band (Sealed Secrets / External
+    # Secrets) so the values file stays free of credentials.
+    secretRef:
+      name: ""             # required when mode=oidc
+      clientSecretKey: client_secret
+      cookieSecretKey: cookie_secret
 
 # Authorization policy applied AFTER auth. When `policy` is empty, every
 # authenticated user gets full access. Provide either an inline policy
