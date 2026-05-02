@@ -1,0 +1,65 @@
+{{- if .Values.rbac.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "yafu.fullname" . }}
+  labels:
+    {{- include "yafu.labels" . | nindent 4 }}
+rules:
+  # Manage Cluster CRs that describe registered remote clusters.
+  - apiGroups: ["yafu.io"]
+    resources:
+      - clusters
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["yafu.io"]
+    resources:
+      - clusters/status
+    verbs: ["get", "update", "patch"]
+  - apiGroups: ["yafu.io"]
+    resources:
+      - clusters/finalizers
+    verbs: ["update"]
+
+  # Required when a Cluster CR uses connection.inCluster=true to manage the
+  # home cluster yafu itself runs in. Safe to keep otherwise — read-only on
+  # standard objects.
+  - apiGroups: [""]
+    resources:
+      - namespaces
+      - events
+      - configmaps
+    verbs: ["get", "list", "watch"]
+
+  - apiGroups: ["source.toolkit.fluxcd.io"]
+    resources:
+      - gitrepositories
+      - ocirepositories
+      - helmrepositories
+      - buckets
+      - helmcharts
+    verbs: ["get", "list", "watch", "patch"]
+
+  - apiGroups: ["kustomize.toolkit.fluxcd.io"]
+    resources:
+      - kustomizations
+    verbs: ["get", "list", "watch", "patch"]
+
+  - apiGroups: ["helm.toolkit.fluxcd.io"]
+    resources:
+      - helmreleases
+    verbs: ["get", "list", "watch", "patch"]
+
+  - apiGroups: ["notification.toolkit.fluxcd.io"]
+    resources:
+      - alerts
+      - providers
+      - receivers
+    verbs: ["get", "list", "watch"]
+
+  - apiGroups: ["image.toolkit.fluxcd.io"]
+    resources:
+      - imagerepositories
+      - imagepolicies
+      - imageupdateautomations
+    verbs: ["get", "list", "watch"]
+{{- end }}

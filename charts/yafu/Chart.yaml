@@ -1,0 +1,16 @@
+apiVersion: v2
+name: yafu
+description: A modern open-source FluxCD GitOps dashboard
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - fluxcd
+  - gitops
+  - kubernetes
+  - dashboard
+home: https://github.com/guipguia/yafu
+sources:
+  - https://github.com/guipguia/yafu
+maintainers:
+  - name: yafu maintainers

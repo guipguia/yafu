@@ -1,0 +1,164 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: clusters.yafu.io
+spec:
+  group: yafu.io
+  scope: Cluster
+  names:
+    kind: Cluster
+    listKind: ClusterList
+    singular: cluster
+    plural: clusters
+    shortNames:
+      - yclu
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Display
+          type: string
+          jsonPath: .spec.displayName
+        - name: Env
+          type: string
+          jsonPath: .spec.environment
+        - name: Ready
+          type: string
+          jsonPath: .status.conditions[?(@.type=="Ready")].status
+        - name: Apps
+          type: integer
+          jsonPath: .status.summary.apps
+        - name: Failing
+          type: integer
+          jsonPath: .status.summary.failing
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          description: Cluster represents an external Kubernetes cluster managed by yafu.
+          type: object
+          required:
+            - spec
+          properties:
+            apiVersion:
+              type: string
+            kind:
+              type: string
+            metadata:
+              type: object
+            spec:
+              type: object
+              required:
+                - connection
+              properties:
+                displayName:
+                  type: string
+                  description: Human-readable name shown in the UI; defaults to metadata.name.
+                region:
+                  type: string
+                  description: Free-form region descriptor like "AWS · eu-west-1".
+                environment:
+                  type: string
+                  enum:
+                    - prod
+                    - staging
+                    - dev
+                    - edge
+                    - mgmt
+                fluxNamespace:
+                  type: string
+                  default: flux-system
+                  description: Namespace where Flux runs on the target cluster.
+                connection:
+                  type: object
+                  description: Exactly one of inCluster or kubeconfigSecretRef must be set.
+                  properties:
+                    inCluster:
+                      type: boolean
+                      description: Use yafu's own ServiceAccount credentials. Useful for the home cluster.
+                    kubeconfigSecretRef:
+                      type: object
+                      required:
+                        - name
+                      properties:
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                          description: Defaults to yafu's own namespace.
+                        key:
+                          type: string
+                          default: kubeconfig
+                  oneOf:
+                    - required: [inCluster]
+                    - required: [kubeconfigSecretRef]
+            status:
+              type: object
+              properties:
+                observedGeneration:
+                  type: integer
+                  format: int64
+                kubernetesVersion:
+                  type: string
+                fluxVersion:
+                  type: string
+                lastProbeTime:
+                  type: string
+                  format: date-time
+                summary:
+                  type: object
+                  properties:
+                    apps:
+                      type: integer
+                      format: int32
+                    ready:
+                      type: integer
+                      format: int32
+                    failing:
+                      type: integer
+                      format: int32
+                    suspended:
+                      type: integer
+                      format: int32
+                    sources:
+                      type: integer
+                      format: int32
+                conditions:
+                  type: array
+                  x-kubernetes-list-type: map
+                  x-kubernetes-list-map-keys:
+                    - type
+                  items:
+                    type: object
+                    required:
+                      - type
+                      - status
+                      - lastTransitionTime
+                      - reason
+                      - message
+                    properties:
+                      type:
+                        type: string
+                        maxLength: 316
+                      status:
+                        type: string
+                        enum:
+                          - "True"
+                          - "False"
+                          - Unknown
+                      observedGeneration:
+                        type: integer
+                        format: int64
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      reason:
+                        type: string
+                        maxLength: 1024
+                      message:
+                        type: string
+                        maxLength: 32768

@@ -1,0 +1,14 @@
+.git
+.github
+.idea
+.vscode
+**/node_modules
+**/dist
+/bin
+docs/
+charts/
+deploy/
+*.md
+.gitignore
+.editorconfig
+Makefile

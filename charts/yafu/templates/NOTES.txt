@@ -1,0 +1,15 @@
+yafu has been installed in namespace {{ .Release.Namespace }}.
+
+To access the dashboard:
+
+{{- if .Values.ingress.enabled }}
+{{- range $host := .Values.ingress.hosts }}
+{{- range .paths }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}{{ .path }}
+{{- end }}
+{{- end }}
+{{- else }}
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "yafu.fullname" . }} 8080:{{ .Values.service.port }}
+
+  Then open http://localhost:8080
+{{- end }}

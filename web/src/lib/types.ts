@@ -1,0 +1,81 @@
+// API DTOs returned by the Go backend. Keep aligned with
+// internal/api/types/types.go — these are the API contract until OpenAPI
+// codegen lands.
+
+export interface Cluster {
+  id: string
+  name: string
+  region?: string
+  env?: string
+  /** healthy | degraded | failing | unreachable */
+  status: string
+  apps: number
+  ready: number
+  failing: number
+  suspended: number
+  sources: number
+  version?: string
+  reachable: boolean
+  fluxInstalled: boolean
+  lastError?: string
+  spark?: number[]
+}
+
+export interface ClustersResponse {
+  clusters: Cluster[]
+}
+
+export interface Application {
+  id: string
+  name: string
+  /** Kustomization | HelmRelease */
+  kind: string
+  ns: string
+  /** Display name of the cluster. */
+  cluster: string
+  /** Stable id used for filtering & API calls. */
+  clusterId: string
+  /** healthy | degraded | failing | progressing | paused */
+  status: string
+  /** Synced | OutOfSync | Progressing | Suspended */
+  sync: string
+  source: string
+  revision: string
+  age: string
+  message?: string
+  suspended: boolean
+  replicas?: string
+}
+
+export interface ApplicationsResponse {
+  applications: Application[]
+  errors?: ClusterError[]
+}
+
+export interface ClusterError {
+  cluster: string
+  error: string
+}
+
+// ---------- Drawer placeholder types (mock until v0.2 wires real data) ----------
+
+export type EventKind = 'ok' | 'warn' | 'err'
+
+export interface ResourceNode {
+  name: string
+  kind: string
+  status: string
+  children?: ResourceNode[]
+}
+
+export interface TimelineEvent {
+  t: string
+  who: string
+  kind: EventKind
+  msg: string
+}
+
+export interface DiffSide {
+  side: 'desired' | 'live'
+  lines: { n: number; t: string; cls: '' | 'add' | 'del' }[]
+}
