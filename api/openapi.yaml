@@ -1,0 +1,609 @@
+# yafu HTTP API.
+#
+# This file is the source of truth for the JSON shapes the
+# frontend consumes. The TypeScript types in
+# `web/src/lib/api-types.ts` are generated from here via
+# `npm run gen:types` — do not hand-edit that file.
+#
+# Go-side DTOs in `internal/api/types/types.go` are still
+# maintained by hand. CI compares the generated TS output to the
+# checked-in version and fails on drift; reviewers should manually
+# verify the Go types match new schemas. A future commit may
+# generate Go from this file too.
+openapi: 3.1.0
+info:
+  title: yafu HTTP API
+  version: v0.1.0
+  description: |
+    Yet Another Flux UI — multi-cluster GitOps dashboard for FluxCD.
+    The API fans every list query out across registered clusters
+    and returns a partial-success envelope when only some clusters
+    succeed (`errors[]` in every list response).
+
+servers:
+  - url: /api/v1
+
+tags:
+  - name: clusters
+  - name: applications
+  - name: sources
+  - name: alerts
+  - name: events
+  - name: image-updates
+  - name: identity
+
+# Endpoints are documented enough for openapi-typescript to emit
+# request/response types for callers. We don't lean on this spec
+# for server validation (the Go handlers are the real contract);
+# the goal is type-safety on the consumer side.
+paths:
+  /version:
+    get:
+      operationId: getVersion
+      summary: Build version + commit SHA + build date.
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+  /whoami:
+    get:
+      operationId: getWhoami
+      tags: [identity]
+      summary: Identity yafu inferred for the request.
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WhoamiResponse'
+  /clusters:
+    get:
+      operationId: listClusters
+      tags: [clusters]
+      summary: List registered clusters with probe status.
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClustersResponse'
+  /applications:
+    get:
+      operationId: listApplications
+      tags: [applications]
+      parameters:
+        - in: query
+          name: cluster
+          schema: { type: string }
+          description: Restrict to a single cluster (registry id).
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationsResponse'
+  /sources:
+    get:
+      operationId: listSources
+      tags: [sources]
+      parameters:
+        - in: query
+          name: cluster
+          schema: { type: string }
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourcesResponse'
+  /alerts:
+    get:
+      operationId: listAlerts
+      tags: [alerts]
+      parameters:
+        - in: query
+          name: cluster
+          schema: { type: string }
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertsResponse'
+  /events:
+    get:
+      operationId: listEvents
+      tags: [events]
+      parameters:
+        - in: query
+          name: cluster
+          schema: { type: string }
+        - in: query
+          name: ns
+          schema: { type: string }
+        - in: query
+          name: kind
+          schema: { type: string }
+        - in: query
+          name: name
+          schema: { type: string }
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventsResponse'
+  /image-updates:
+    get:
+      operationId: listImageUpdates
+      tags: [image-updates]
+      parameters:
+        - in: query
+          name: cluster
+          schema: { type: string }
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageUpdatesResponse'
+
+components:
+  schemas:
+    # --------- partial fan-out envelope -----------------------------
+    ClusterError:
+      description: One per-cluster failure during a fan-out list.
+      type: object
+      required: [cluster, error]
+      properties:
+        cluster: { type: string }
+        error: { type: string }
+
+    # --------- clusters ---------------------------------------------
+    Cluster:
+      description: Registered cluster summary used by the Fleet view.
+      type: object
+      required:
+        - id
+        - name
+        - status
+        - apps
+        - ready
+        - failing
+        - suspended
+        - sources
+        - reachable
+        - fluxInstalled
+      properties:
+        id: { type: string }
+        name: { type: string }
+        region: { type: string }
+        env: { type: string }
+        status:
+          type: string
+          enum: [healthy, degraded, failing, unreachable]
+        apps: { type: integer }
+        ready: { type: integer }
+        failing: { type: integer }
+        suspended: { type: integer }
+        sources: { type: integer }
+        version: { type: string }
+        reachable: { type: boolean }
+        fluxInstalled: { type: boolean }
+        lastError: { type: string }
+        spark:
+          type: array
+          items: { type: integer }
+    ClustersResponse:
+      type: object
+      required: [clusters]
+      properties:
+        clusters:
+          type: array
+          items: { $ref: '#/components/schemas/Cluster' }
+
+    # --------- applications -----------------------------------------
+    Application:
+      description: Unified row for a Kustomization or HelmRelease.
+      type: object
+      required:
+        - id
+        - name
+        - kind
+        - ns
+        - cluster
+        - clusterId
+        - status
+        - sync
+        - source
+        - revision
+        - age
+        - suspended
+      properties:
+        id: { type: string }
+        name: { type: string }
+        kind:
+          type: string
+          enum: [Kustomization, HelmRelease]
+        ns: { type: string }
+        cluster: { type: string, description: 'Display name.' }
+        clusterId: { type: string, description: 'Registry id, URL-safe.' }
+        status:
+          type: string
+          enum: [healthy, degraded, failing, progressing, paused]
+        sync:
+          type: string
+          enum: [Synced, OutOfSync, Progressing, Suspended]
+        source: { type: string }
+        revision: { type: string }
+        age: { type: string }
+        message: { type: string }
+        suspended: { type: boolean }
+        replicas: { type: string }
+    ApplicationsResponse:
+      type: object
+      required: [applications]
+      properties:
+        applications:
+          type: array
+          items: { $ref: '#/components/schemas/Application' }
+        errors:
+          type: array
+          items: { $ref: '#/components/schemas/ClusterError' }
+
+    # --------- sources ----------------------------------------------
+    Source:
+      description: FluxCD Source resource.
+      type: object
+      required:
+        - id
+        - name
+        - kind
+        - ns
+        - cluster
+        - clusterId
+        - url
+        - status
+        - age
+        - suspended
+      properties:
+        id: { type: string }
+        name: { type: string }
+        kind:
+          type: string
+          enum: [GitRepository, HelmRepository, OCIRepository, Bucket]
+        ns: { type: string }
+        cluster: { type: string }
+        clusterId: { type: string }
+        url: { type: string }
+        ref: { type: string }
+        revision: { type: string }
+        status:
+          type: string
+          enum: [healthy, degraded, failing, progressing, paused]
+        interval: { type: string }
+        age: { type: string }
+        message: { type: string }
+        suspended: { type: boolean }
+    SourcesResponse:
+      type: object
+      required: [sources]
+      properties:
+        sources:
+          type: array
+          items: { $ref: '#/components/schemas/Source' }
+        errors:
+          type: array
+          items: { $ref: '#/components/schemas/ClusterError' }
+
+    # --------- alerts -----------------------------------------------
+    Alert:
+      type: object
+      required:
+        - id
+        - name
+        - cluster
+        - clusterId
+        - ns
+        - provider
+        - severity
+        - status
+        - suspended
+        - age
+      properties:
+        id: { type: string }
+        name: { type: string }
+        cluster: { type: string }
+        clusterId: { type: string }
+        ns: { type: string }
+        provider:
+          type: string
+          description: Resolved provider type or 'missing' when the Provider ref is broken.
+        severity:
+          type: string
+          enum: [info, error]
+        target: { type: string }
+        status:
+          type: string
+          enum: [healthy, paused]
+        suspended: { type: boolean }
+        age: { type: string }
+    AlertsResponse:
+      type: object
+      required: [alerts]
+      properties:
+        alerts:
+          type: array
+          items: { $ref: '#/components/schemas/Alert' }
+        errors:
+          type: array
+          items: { $ref: '#/components/schemas/ClusterError' }
+
+    # --------- events -----------------------------------------------
+    FluxEvent:
+      type: object
+      required: [id, t, cluster, clusterId, ns, kind, type, reason, message, object, source]
+      properties:
+        id: { type: string }
+        t: { type: string, description: 'RFC3339 timestamp.' }
+        cluster: { type: string }
+        clusterId: { type: string }
+        ns: { type: string }
+        kind:
+          type: string
+          enum: [ok, warn, err]
+        type:
+          type: string
+          enum: [Normal, Warning]
+        reason: { type: string }
+        message: { type: string }
+        object: { type: string, description: '<Kind>/<name>.' }
+        source: { type: string }
+    EventsResponse:
+      type: object
+      required: [events]
+      properties:
+        events:
+          type: array
+          items: { $ref: '#/components/schemas/FluxEvent' }
+        errors:
+          type: array
+          items: { $ref: '#/components/schemas/ClusterError' }
+
+    # --------- image updates ----------------------------------------
+    ImageUpdate:
+      type: object
+      required: [id, name, cluster, clusterId, ns, image, policy, status, age, suspended]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        cluster: { type: string }
+        clusterId: { type: string }
+        ns: { type: string }
+        image: { type: string }
+        latestTag: { type: string }
+        policy:
+          type: string
+          description: '"semver:RANGE" | "alphabetical" | "numerical" | "" when malformed.'
+        status:
+          type: string
+          enum: [ready, failing, progressing, paused]
+        age: { type: string }
+        message: { type: string }
+        suspended: { type: boolean }
+    ImageUpdatesResponse:
+      type: object
+      required: [updates]
+      properties:
+        updates:
+          type: array
+          items: { $ref: '#/components/schemas/ImageUpdate' }
+        errors:
+          type: array
+          items: { $ref: '#/components/schemas/ClusterError' }
+
+    # --------- application detail tabs ------------------------------
+    AppHistoryEntry:
+      type: object
+      required: [revision, current]
+      properties:
+        revision: { type: string }
+        status: { type: string }
+        action: { type: string }
+        appVersion: { type: string }
+        timestamp: { type: string }
+        current: { type: boolean }
+    AppHistoryResponse:
+      type: object
+      required: [appId, entries]
+      properties:
+        appId: { type: string }
+        entries:
+          type: array
+          items: { $ref: '#/components/schemas/AppHistoryEntry' }
+        note: { type: string }
+
+    TreeNode:
+      type: object
+      required: [kind, name, status]
+      properties:
+        group: { type: string }
+        version: { type: string }
+        kind: { type: string }
+        ns: { type: string }
+        name: { type: string }
+        status:
+          type: string
+          enum: [ready, failing, progressing, notfound, unknown]
+        message: { type: string }
+    TreeResponse:
+      type: object
+      required: [appId, nodes]
+      properties:
+        appId: { type: string }
+        nodes:
+          type: array
+          items: { $ref: '#/components/schemas/TreeNode' }
+        note: { type: string }
+
+    ManifestResponse:
+      type: object
+      required: [appId, kind, yaml]
+      properties:
+        appId: { type: string }
+        kind: { type: string }
+        yaml: { type: string }
+
+    ManagedField:
+      type: object
+      required: [manager, operation, foreign]
+      properties:
+        manager: { type: string }
+        operation:
+          type: string
+          enum: [Apply, Update]
+        time: { type: string }
+        foreign:
+          type: boolean
+          description: True when the manager is not a known Flux controller.
+    DriftedResource:
+      type: object
+      required: [kind, name, status]
+      properties:
+        group: { type: string }
+        version: { type: string }
+        kind: { type: string }
+        ns: { type: string }
+        name: { type: string }
+        status:
+          type: string
+          enum: [ready, drift, notfound, unknown]
+        managers:
+          type: array
+          items: { $ref: '#/components/schemas/ManagedField' }
+    DiffResponse:
+      type: object
+      required: [appId, resources]
+      properties:
+        appId: { type: string }
+        resources:
+          type: array
+          items: { $ref: '#/components/schemas/DriftedResource' }
+        note: { type: string }
+
+    PodInfo:
+      type: object
+      required: [ns, name, phase, containers, restarts, age]
+      properties:
+        ns: { type: string }
+        name: { type: string }
+        phase:
+          type: string
+          enum: [Pending, Running, Succeeded, Failed, Unknown]
+        containers:
+          type: array
+          items: { type: string }
+        restarts: { type: integer }
+        age: { type: string }
+    LogsResponse:
+      type: object
+      required: [appId, pods]
+      properties:
+        appId: { type: string }
+        pods:
+          type: array
+          items: { $ref: '#/components/schemas/PodInfo' }
+        selected: { type: string, description: 'ns/name of the pod.' }
+        container: { type: string }
+        logs: { type: string }
+        truncated: { type: boolean }
+        note: { type: string }
+
+    # --------- rendered Git-vs-cluster diff -------------------------
+    RenderLine:
+      type: object
+      required: [kind, text]
+      properties:
+        kind:
+          type: string
+          enum: [context, add, del, empty]
+        desiredLn: { type: integer }
+        liveLn: { type: integer }
+        text: { type: string }
+    RenderHunk:
+      type: object
+      required: [label, lines]
+      properties:
+        label: { type: string }
+        lines:
+          type: array
+          items: { $ref: '#/components/schemas/RenderLine' }
+    RenderResource:
+      type: object
+      required: [kind, name, status]
+      properties:
+        group: { type: string }
+        version: { type: string }
+        kind: { type: string }
+        ns: { type: string }
+        name: { type: string }
+        status:
+          type: string
+          enum: [in-sync, drifted, missing-on-cluster, extra-on-cluster, render-error]
+        hunks:
+          type: array
+          items: { $ref: '#/components/schemas/RenderHunk' }
+        renderError: { type: string }
+        reconcileWould:
+          type: string
+          enum: [create, update, delete]
+    RenderSource:
+      type: object
+      required: [name, namespace, kind, revision, method]
+      properties:
+        name: { type: string }
+        namespace: { type: string }
+        kind:
+          type: string
+          enum: [GitRepository, HelmRepository, OCIRepository, Bucket]
+        ref: { type: string }
+        revision: { type: string }
+        method:
+          type: string
+          enum: ['kustomize build', 'helm template']
+    RenderResponse:
+      type: object
+      required: [appId, source, renderedAt, resources]
+      properties:
+        appId: { type: string }
+        source: { $ref: '#/components/schemas/RenderSource' }
+        renderedAt: { type: string }
+        resources:
+          type: array
+          items: { $ref: '#/components/schemas/RenderResource' }
+        error: { type: string }
+
+    # --------- identity ---------------------------------------------
+    WhoamiResponse:
+      type: object
+      required: [subject, isAnonymous]
+      properties:
+        subject: { type: string }
+        email: { type: string }
+        name: { type: string }
+        groups:
+          type: array
+          items: { type: string }
+        isAnonymous: { type: boolean }

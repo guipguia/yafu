@@ -48,3 +48,17 @@ If you then still feel the need to ask a question and need clarification, we rec
 4. Ensure the test suite passes.
 5. Make sure your code lints and is properly formatted.
 6. Submit a pull request!
+
+### Modifying the API contract
+
+`api/openapi.yaml` is the source of truth for the JSON shapes the
+frontend consumes. When you add or change an API response:
+
+1. Update the schema in `api/openapi.yaml`.
+2. Regenerate the TypeScript types: `cd web && npm run gen:types`.
+3. Update the matching Go DTO in `internal/api/types/types.go`.
+   (Go-side types are still hand-written; CI doesn't yet enforce
+   parity with the spec, so this step is reviewer-checked.)
+4. Commit the regenerated `web/src/lib/api-types.ts`.
+
+CI fails on stale generated types via `npm run gen:check`.

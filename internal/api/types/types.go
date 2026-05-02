@@ -1,6 +1,8 @@
 // Package types defines the JSON DTOs the HTTP API serves to the
-// frontend. Keep these aligned with web/src/lib/types.ts — they are the
-// API contract until OpenAPI codegen lands.
+// frontend. The source of truth for the wire shape is
+// api/openapi.yaml, which generates web/src/lib/api-types.ts.
+// Update this file when editing the spec — Go-side parity is
+// reviewer-checked today, automated codegen is a future commit.
 package types
 
 // Cluster summarises a registered cluster for the Fleet view.

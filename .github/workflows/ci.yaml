@@ -70,6 +70,10 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm run typecheck
+      # Fail when src/lib/api-types.ts is stale relative to
+      # api/openapi.yaml — protects against the spec drifting away
+      # from the TS the frontend imports.
+      - run: npm run gen:check
 
   test-web:
     name: Test Web
