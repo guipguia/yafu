@@ -12,13 +12,20 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/guipguia/yafu/internal/metrics"
 )
 
 // Probe checks reachability, detects Flux, and returns a fresh status
 // snapshot for the entry. It never returns an error — failures are
 // recorded in Status.LastError so the caller can persist a partial state.
+// Each invocation increments the cluster_probe_total{cluster, result}
+// counter regardless of outcome.
 func Probe(ctx context.Context, e *Entry) Status {
 	s := Status{LastProbe: time.Now()}
+	defer func() {
+		metrics.RecordProbe(e.Name, s.Reachable && s.LastError == "")
+	}()
 
 	v, err := e.Discovery.ServerVersion()
 	if err != nil {

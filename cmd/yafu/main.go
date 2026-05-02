@@ -24,6 +24,7 @@ import (
 	yafuv1alpha1 "github.com/guipguia/yafu/api/v1alpha1"
 	"github.com/guipguia/yafu/internal/cluster"
 	"github.com/guipguia/yafu/internal/controllers"
+	"github.com/guipguia/yafu/internal/metrics"
 	"github.com/guipguia/yafu/internal/server"
 	"github.com/guipguia/yafu/internal/version"
 )
@@ -64,6 +65,10 @@ func main() {
 	if err != nil {
 		logger.Error("registry init", "err", err)
 		os.Exit(1)
+	}
+
+	if registry != nil {
+		metrics.MustRegisterRegistry(cluster.MetricsSnapshot(registry))
 	}
 
 	if runManager != nil {

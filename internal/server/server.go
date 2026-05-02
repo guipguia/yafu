@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"github.com/guipguia/yafu/internal/api"
 	"github.com/guipguia/yafu/internal/cluster"
 	"github.com/guipguia/yafu/internal/web"
@@ -29,10 +31,15 @@ func New(cfg Config) *Server {
 	}
 
 	mux := http.NewServeMux()
+	mux.Handle("GET /metrics", promhttp.Handler())
 	api.Register(mux, api.Deps{Registry: cfg.Registry})
 	web.Register(mux)
 
-	handler := chain(mux, withRecover(cfg.Logger), withAccessLog(cfg.Logger))
+	handler := chain(mux,
+		withRequestID(),
+		withRecover(cfg.Logger),
+		withObservability(cfg.Logger),
+	)
 
 	return &Server{
 		cfg: cfg,
