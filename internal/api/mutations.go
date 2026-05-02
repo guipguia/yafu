@@ -9,6 +9,7 @@ import (
 
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1"
+	"go.opentelemetry.io/otel/attribute"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -17,6 +18,7 @@ import (
 	"github.com/guipguia/yafu/internal/auth"
 	"github.com/guipguia/yafu/internal/cluster"
 	"github.com/guipguia/yafu/internal/reqid"
+	"github.com/guipguia/yafu/internal/tracing"
 )
 
 // reconcileAnnotation is the well-known annotation Flux watches: setting it
@@ -91,6 +93,20 @@ func runMutation(
 	ns := r.PathValue("ns")
 	kind := r.PathValue("kind")
 	name := r.PathValue("name")
+
+	// Mutations are the actions an operator most often wants to
+	// inspect in a trace; tag this span with what we're doing so a
+	// search across requests for "verb=reconcile" lands here.
+	ctx, span := tracing.Tracer().Start(r.Context(), "mutate."+verb)
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("yafu.verb", verb),
+		attribute.String("yafu.cluster", clusterID),
+		attribute.String("yafu.namespace", ns),
+		attribute.String("yafu.kind", kind),
+		attribute.String("yafu.name", name),
+	)
+	r = r.WithContext(ctx)
 
 	id, _ := auth.IdentityFrom(r.Context())
 	rec := audit.Record{

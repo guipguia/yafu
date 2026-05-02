@@ -9,6 +9,8 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
 	"github.com/guipguia/yafu/internal/api"
 	"github.com/guipguia/yafu/internal/audit"
 	"github.com/guipguia/yafu/internal/auth"
@@ -83,7 +85,15 @@ func New(cfg Config) *Server {
 	})
 	mux.Handle("/api/", cfg.Auth.Middleware(apiMux))
 
-	handler := chain(mux,
+	// otelhttp wraps the entire mux as the outermost layer so an
+	// incoming traceparent header lands in the context before any
+	// of our handlers run, and the span name uses the matched route
+	// pattern (otelhttp's "http.route" attribute) once Go 1.22's
+	// ServeMux populates it.
+	traced := otelhttp.NewHandler(mux, "yafu.http",
+		otelhttp.WithMessageEvents(otelhttp.ReadEvents, otelhttp.WriteEvents),
+	)
+	handler := chain(traced,
 		withRequestID(),
 		withRecover(cfg.Logger),
 		withObservability(cfg.Logger),

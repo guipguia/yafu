@@ -14,6 +14,7 @@ import (
 	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1"
 	fluxmeta "github.com/fluxcd/pkg/apis/meta"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
+	"go.opentelemetry.io/otel/attribute"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -23,6 +24,7 @@ import (
 	"github.com/guipguia/yafu/internal/auth"
 	"github.com/guipguia/yafu/internal/cluster"
 	"github.com/guipguia/yafu/internal/render"
+	"github.com/guipguia/yafu/internal/tracing"
 )
 
 // renderTimeout caps the total time spent fetching + rendering one
@@ -107,6 +109,14 @@ func (h *applicationsHandler) render(w http.ResponseWriter, r *http.Request) {
 }
 
 func renderKustomization(ctx context.Context, e *cluster.Entry, k *kustomizev1.Kustomization, resp *apitypes.RenderResponse) error {
+	ctx, span := tracing.Tracer().Start(ctx, "render.kustomization")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("yafu.cluster", e.Name),
+		attribute.String("yafu.namespace", k.Namespace),
+		attribute.String("yafu.name", k.Name),
+	)
+
 	resp.Source.Method = "kustomize build"
 
 	src, srcKind, ref, err := getKustomizationSource(ctx, e.Client, k)
@@ -123,25 +133,33 @@ func renderKustomization(ctx context.Context, e *cluster.Entry, k *kustomizev1.K
 		return fmt.Errorf("source %s/%s has no artifact yet — wait for the source to reconcile", src.GetNamespace(), src.GetName())
 	}
 	resp.Source.Revision = art.Revision
+	span.SetAttributes(attribute.String("yafu.source.revision", art.Revision))
 
-	dir, cleanup, err := render.FetchAndExtract(ctx, render.ArtifactRef{
+	fetchCtx, fetchSpan := tracing.Tracer().Start(ctx, "render.fetchArtifact")
+	dir, cleanup, err := render.FetchAndExtract(fetchCtx, render.ArtifactRef{
 		URL:    art.URL,
 		Digest: art.Digest,
 	})
+	fetchSpan.End()
 	if err != nil {
 		return fmt.Errorf("fetch artifact: %w", err)
 	}
 	defer func() { _ = cleanup() }()
 
-	rendered, err := render.RenderKustomization(ctx, dir, k)
+	buildCtx, buildSpan := tracing.Tracer().Start(ctx, "render.kustomizeBuild")
+	rendered, err := render.RenderKustomization(buildCtx, dir, k)
+	buildSpan.SetAttributes(attribute.Int("yafu.rendered.count", len(rendered)))
+	buildSpan.End()
 	if err != nil {
 		return fmt.Errorf("kustomize build: %w", err)
 	}
 
-	resources, err := render.DiffResources(ctx, e.Client, render.DiffOptions{
+	diffCtx, diffSpan := tracing.Tracer().Start(ctx, "render.diff")
+	resources, err := render.DiffResources(diffCtx, e.Client, render.DiffOptions{
 		Rendered:  rendered,
 		Inventory: inventoryKeysFromKustomization(k),
 	})
+	diffSpan.End()
 	if err != nil {
 		return fmt.Errorf("diff: %w", err)
 	}
@@ -150,9 +168,19 @@ func renderKustomization(ctx context.Context, e *cluster.Entry, k *kustomizev1.K
 }
 
 func renderHelmRelease(ctx context.Context, e *cluster.Entry, hr *helmv2.HelmRelease, resp *apitypes.RenderResponse) error {
+	ctx, span := tracing.Tracer().Start(ctx, "render.helmRelease")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("yafu.cluster", e.Name),
+		attribute.String("yafu.namespace", hr.Namespace),
+		attribute.String("yafu.name", hr.Name),
+	)
+
 	resp.Source.Method = "helm template"
 
-	chartDir, srcInfo, cleanup, err := materializeHelmChart(ctx, e.Client, hr)
+	fetchCtx, fetchSpan := tracing.Tracer().Start(ctx, "render.fetchChartArtifact")
+	chartDir, srcInfo, cleanup, err := materializeHelmChart(fetchCtx, e.Client, hr)
+	fetchSpan.End()
 	if err != nil {
 		return err
 	}
@@ -163,8 +191,12 @@ func renderHelmRelease(ctx context.Context, e *cluster.Entry, hr *helmv2.HelmRel
 	resp.Source.Kind = srcInfo.kind
 	resp.Source.Ref = srcInfo.ref
 	resp.Source.Revision = srcInfo.revision
+	span.SetAttributes(attribute.String("yafu.source.revision", srcInfo.revision))
 
-	rendered, err := render.RenderHelmRelease(ctx, chartDir, hr)
+	tmplCtx, tmplSpan := tracing.Tracer().Start(ctx, "render.helmTemplate")
+	rendered, err := render.RenderHelmRelease(tmplCtx, chartDir, hr)
+	tmplSpan.SetAttributes(attribute.Int("yafu.rendered.count", len(rendered)))
+	tmplSpan.End()
 	if err != nil {
 		return fmt.Errorf("helm template: %w", err)
 	}
@@ -181,10 +213,12 @@ func renderHelmRelease(ctx context.Context, e *cluster.Entry, hr *helmv2.HelmRel
 		})
 	}
 
-	resources, err := render.DiffResources(ctx, e.Client, render.DiffOptions{
+	diffCtx, diffSpan := tracing.Tracer().Start(ctx, "render.diff")
+	resources, err := render.DiffResources(diffCtx, e.Client, render.DiffOptions{
 		Rendered:  rendered,
 		Inventory: inv,
 	})
+	diffSpan.End()
 	if err != nil {
 		return fmt.Errorf("diff: %w", err)
 	}

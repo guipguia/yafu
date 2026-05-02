@@ -141,14 +141,50 @@ sequenceDiagram
 | `--rbac-file` | "" | Path to RBAC policy YAML. Empty → allow-all-after-auth (with WARN). |
 | `--metrics-addr` | `:8081` | controller-runtime's own metrics endpoint (CRD mode). `0` disables. |
 | `--probe-addr` | `:8082` | controller-runtime's healthz (CRD mode). `0` disables. |
+| `--otel-endpoint` | "" | OTLP HTTP collector endpoint. Empty disables tracing. |
+| `--otel-insecure` | `true` | Skip TLS for the OTLP exporter (cluster-internal collectors typically use HTTP). |
+| `--otel-sample-rate` | `1.0` | Head-based trace sampler ratio in [0.0, 1.0]. |
+
+## Observability
+
+yafu emits three signal types:
+
+- **Logs** — structured JSON via `slog`, one line per request with
+  request ID, method, path, status, latency, and identity. Audit
+  records (one per privileged mutation) ride the same stream;
+  the `audit:true` field disambiguates.
+- **Metrics** — Prometheus exposition at `/metrics` (same port as
+  the API). Histograms for HTTP latency by route + status,
+  per-cluster probe success + Flux installation flag, registry
+  size. The Helm chart can opt into a `ServiceMonitor` for
+  prometheus-operator scrape.
+- **Traces** — OpenTelemetry, OTLP HTTP exporter. Spans cover
+  inbound HTTP requests (`otelhttp` middleware), the rendered
+  Git-vs-cluster pipeline (artifact fetch, kustomize-build /
+  helm-template, per-resource diff), per-cluster fan-out
+  goroutines on list endpoints, and mutations (`mutate.{verb}`
+  with cluster/ns/kind/name attributes).
+
+Tracing is **off** by default — empty OTLP endpoint leaves the
+global tracer provider as the no-op default and OTel calls
+compile to near-zero-cost stubs. The W3C trace-context propagator
+is installed regardless, so a `traceparent` header from an upstream
+gateway flows through downstream calls even with the exporter
+disabled.
+
+Production deployments point `tracing.endpoint` in the Helm chart
+at any OTLP-HTTP-compatible collector — Tempo, Honeycomb, Datadog,
+Grafana Cloud, etc. Sample rate is configurable
+(`tracing.sampleRate`, default 1.0). yafu is low-volume so
+always-on sampling is affordable.
 
 ## Roadmap (deferred)
 
 | Item | Status | Where |
 |------|--------|-------|
-| Native OIDC token verification | not started | `internal/auth` will gain a `oidc.go` companion to `header.go`. |
-| Informers + SSE | not started | replaces per-request `List` in `internal/api/*.go` with a watch cache; `/api/v1/stream` will push invalidation events to TanStack Query. |
-| Resource tree from Inventory | not started | new `/api/v1/applications/{id}/tree` walks `status.inventory.entries` and adds workload status. |
-| Live diff (desired vs cluster) | not started | server-side dry-run apply per resource ref. |
-| Image automation | not started | requires `image.toolkit.fluxcd.io` types. |
 | AI-assisted debugging | not started | see `memory/ai_assist_feature.md`. |
+| Settings page real implementation | not started | currently mock; show identity, RBAC summary, audit settings. |
+| postBuild substitutions in render | not started | requires ConfigMap/Secret reads in `internal/render`. |
+| valuesFrom resolution in HelmRelease render | not started | same; needs `kubernetes.Interface` plumbed into the render package. |
+| SOPS decryption in Kustomization render | not started | requires a SOPS keyring config. |
+| Generate Go DTOs from `api/openapi.yaml` | not started | drops the manual parity step in `internal/api/types/types.go`. |

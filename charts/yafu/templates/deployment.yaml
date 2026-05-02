@@ -70,6 +70,13 @@ spec:
             - --oidc-client-secret-file=/etc/yafu/oidc/{{ $clientSecretKey }}
             - --oidc-cookie-secret-file=/etc/yafu/oidc/{{ $cookieSecretKey }}
             {{- end }}
+            {{- with .Values.tracing }}
+            {{- if .endpoint }}
+            - --otel-endpoint={{ .endpoint }}
+            - --otel-insecure={{ ternary "true" "false" (default true .insecure) }}
+            - --otel-sample-rate={{ .sampleRate | default 1.0 }}
+            {{- end }}
+            {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.service.targetPort }}

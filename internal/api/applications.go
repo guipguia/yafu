@@ -12,12 +12,14 @@ import (
 
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1"
+	"go.opentelemetry.io/otel/attribute"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/guipguia/yafu/internal/api/types"
 	"github.com/guipguia/yafu/internal/audit"
 	"github.com/guipguia/yafu/internal/auth"
 	"github.com/guipguia/yafu/internal/cluster"
+	"github.com/guipguia/yafu/internal/tracing"
 )
 
 type applicationsHandler struct {
@@ -65,11 +67,16 @@ func (h *applicationsHandler) list(w http.ResponseWriter, r *http.Request) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			apps, err := listApplicationsForCluster(ctx, e)
+			fanCtx, span := tracing.Tracer().Start(ctx, "applications.fanout.cluster")
+			span.SetAttributes(attribute.String("yafu.cluster", e.Name))
+			defer span.End()
+			apps, err := listApplicationsForCluster(fanCtx, e)
 			if err != nil {
+				span.SetAttributes(attribute.String("yafu.error", err.Error()))
 				results <- result{err: &types.ClusterError{Cluster: e.Name, Error: err.Error()}}
 				return
 			}
+			span.SetAttributes(attribute.Int("yafu.apps.count", len(apps)))
 			results <- result{apps: apps}
 		}()
 	}

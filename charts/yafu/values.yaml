@@ -125,6 +125,17 @@ authzPolicy:
 
 logLevel: info
 
+# OpenTelemetry distributed tracing. yafu emits OTLP HTTP spans for
+# incoming HTTP requests, the rendered Git-vs-cluster diff pipeline,
+# per-cluster fan-out goroutines on list endpoints, and mutations.
+# Disabled by default — leaving endpoint empty means the tracer
+# provider stays as the no-op default and there's no exporter
+# overhead.
+tracing:
+  endpoint: ""           # e.g. http://otel-collector.observability:4318
+  insecure: true         # cluster-internal collectors typically use HTTP
+  sampleRate: 1.0        # 1.0 = always-on; 0.1 = 10% head-based sampling
+
 env: []
 nodeSelector: {}
 tolerations: []

@@ -9,8 +9,10 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -29,6 +31,7 @@ import (
 	"github.com/guipguia/yafu/internal/controllers"
 	"github.com/guipguia/yafu/internal/metrics"
 	"github.com/guipguia/yafu/internal/server"
+	"github.com/guipguia/yafu/internal/tracing"
 	"github.com/guipguia/yafu/internal/version"
 	"github.com/guipguia/yafu/internal/watch"
 )
@@ -57,6 +60,10 @@ func main() {
 		oidcGroupsClaim      = flag.String("oidc-groups-claim", envOr("YAFU_OIDC_GROUPS_CLAIM", "groups"), "ID-token claim that holds group names; varies by IdP.")
 		oidcCookieSecretFile = flag.String("oidc-cookie-secret-file", envOr("YAFU_OIDC_COOKIE_SECRET_FILE", ""), "Path to a file containing the cookie-signing secret. If unset, a random secret is generated at startup.")
 		oidcSecureCookie     = flag.Bool("oidc-secure-cookie", envOr("YAFU_OIDC_SECURE_COOKIE", "true") != "false", "Set Secure flag on cookies. Disable for HTTP dev only.")
+
+		otelEndpoint = flag.String("otel-endpoint", envOr("OTEL_EXPORTER_OTLP_ENDPOINT", ""), "OTLP HTTP collector endpoint (e.g. http://otel-collector:4318). Empty disables tracing.")
+		otelInsecure = flag.Bool("otel-insecure", envOr("OTEL_EXPORTER_OTLP_INSECURE", "true") != "false", "Skip TLS for the OTLP exporter (cluster-internal collectors typically use HTTP).")
+		otelSample   = flag.Float64("otel-sample-rate", parseFloat(envOr("OTEL_TRACES_SAMPLER_ARG", "1.0"), 1.0), "Head-based trace sampler ratio in [0.0, 1.0].")
 	)
 	// --kubeconfig is registered by sigs.k8s.io/controller-runtime/pkg/client/config
 	// via package init(); we read its value after parsing.
@@ -74,6 +81,24 @@ func main() {
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
+
+	traceShutdown, err := tracing.Setup(ctx, tracing.Config{
+		Endpoint:       *otelEndpoint,
+		Insecure:       *otelInsecure,
+		SampleRate:     *otelSample,
+		ServiceVersion: version.Version,
+	}, logger)
+	if err != nil {
+		logger.Error("tracing init", "err", err)
+		os.Exit(1)
+	}
+	defer func() {
+		shutdownCtx, c := context.WithTimeout(context.Background(), 5*time.Second)
+		defer c()
+		if err := traceShutdown(shutdownCtx); err != nil {
+			logger.Warn("trace exporter shutdown", "err", err)
+		}
+	}()
 
 	mode := pickMode(*clusterMode, *configFile, kubeconfig)
 	logger.Info("cluster mode", "mode", mode)
@@ -315,6 +340,18 @@ func buildOIDCConfig(
 		CookieSecret: cookieSecret,
 		SecureCookie: secureCookie,
 	}, nil
+}
+
+// parseFloat is a small helper that returns def when v can't be
+// parsed. Used for the OTEL_TRACES_SAMPLER_ARG env fallback so a
+// malformed env value doesn't fail startup — yafu just runs with
+// the default sample rate.
+func parseFloat(v string, def float64) float64 {
+	f, err := strconv.ParseFloat(v, 64)
+	if err != nil {
+		return def
+	}
+	return f
 }
 
 func newLogger(level string) *slog.Logger {
