@@ -66,4 +66,13 @@ func RegisterAPI(mux *http.ServeMux, deps Deps) {
 
 	ih := &imageUpdatesHandler{registry: deps.Registry, policy: deps.Policy}
 	mux.HandleFunc("GET /api/v1/image-updates", ih.list)
+
+	imh := &imageMutationsHandler{deps: mutationDeps{
+		registry: deps.Registry,
+		policy:   deps.Policy,
+		audit:    deps.Audit,
+	}}
+	mux.HandleFunc("POST /api/v1/image-updates/{cluster}/{ns}/{kind}/{name}/reconcile", imh.reconcile)
+	mux.HandleFunc("POST /api/v1/image-updates/{cluster}/{ns}/{kind}/{name}/suspend", imh.suspend)
+	mux.HandleFunc("POST /api/v1/image-updates/{cluster}/{ns}/{kind}/{name}/resume", imh.resume)
 }

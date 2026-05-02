@@ -191,10 +191,11 @@ type ImageUpdate struct {
 	LatestTag string `json:"latestTag,omitempty"`
 	// Policy is one of "semver:RANGE", "alphabetical", "numerical", or "" if
 	// the policy is malformed.
-	Policy  string `json:"policy"`
-	Status  string `json:"status"` // ready | failing | progressing
-	Age     string `json:"age"`
-	Message string `json:"message,omitempty"`
+	Policy    string `json:"policy"`
+	Status    string `json:"status"` // ready | failing | progressing | paused
+	Age       string `json:"age"`
+	Message   string `json:"message,omitempty"`
+	Suspended bool   `json:"suspended"`
 }
 
 // ImageUpdatesResponse is the top-level shape of

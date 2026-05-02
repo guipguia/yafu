@@ -48,13 +48,40 @@ func (h *applicationsHandler) resume(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// mutate is the shared boilerplate: extract path params, authorize,
-// resolve the cluster, run the supplied action with a 10s budget,
-// translate any error into a clean status code + JSON envelope, and
-// emit one audit record per request regardless of outcome.
+// mutate keeps the original applications.mutate signature; it's a thin
+// wrapper around runMutation so existing callers don't need to know
+// about the deps struct.
 func (h *applicationsHandler) mutate(
 	w http.ResponseWriter,
 	r *http.Request,
+	verb string,
+	action func(ctx context.Context, e *cluster.Entry, ns, kind, name string) error,
+) {
+	runMutation(w, r, mutationDeps{
+		registry: h.registry,
+		policy:   h.policy,
+		audit:    h.audit,
+	}, verb, action)
+}
+
+// mutationDeps is the slice of api.Deps a generic mutation handler
+// needs. We declare it locally rather than reusing api.Deps to
+// avoid leaking unrelated fields (Hub, etc) into per-handler state.
+type mutationDeps struct {
+	registry cluster.Registry
+	policy   auth.Policy
+	audit    *audit.Logger
+}
+
+// runMutation is the shared boilerplate: extract path params,
+// authorize, resolve the cluster, run the supplied action with a
+// 10s budget, translate any error into a clean status code + JSON
+// envelope, and emit one audit record per request regardless of
+// outcome.
+func runMutation(
+	w http.ResponseWriter,
+	r *http.Request,
+	deps mutationDeps,
 	verb string,
 	action func(ctx context.Context, e *cluster.Entry, ns, kind, name string) error,
 ) {
@@ -73,7 +100,7 @@ func (h *applicationsHandler) mutate(
 		Resource:   audit.Resource{Cluster: clusterID, Ns: ns, Kind: kind, Name: name},
 		RemoteAddr: r.RemoteAddr,
 	}
-	defer func() { h.audit.Record(rec) }()
+	defer func() { deps.audit.Record(rec) }()
 
 	if clusterID == "" || ns == "" || kind == "" || name == "" {
 		rec.Outcome = audit.OutcomeError
@@ -82,20 +109,20 @@ func (h *applicationsHandler) mutate(
 		return
 	}
 
-	if !h.policy.Authorize(id, verb, clusterID) {
+	if !deps.policy.Authorize(id, verb, clusterID) {
 		rec.Outcome = audit.OutcomeDenied
 		rec.Error = "policy denied"
 		writeError(w, http.StatusForbidden, fmt.Sprintf("identity is not allowed to %q on cluster %q", verb, clusterID))
 		return
 	}
 
-	if h.registry == nil {
+	if deps.registry == nil {
 		rec.Outcome = audit.OutcomeError
 		rec.Error = "registry not initialised"
 		writeError(w, http.StatusServiceUnavailable, rec.Error)
 		return
 	}
-	e, ok := h.registry.Get(clusterID)
+	e, ok := deps.registry.Get(clusterID)
 	if !ok {
 		rec.Outcome = audit.OutcomeError
 		rec.Error = "unknown cluster"

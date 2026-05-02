@@ -8,6 +8,7 @@ import type {
   ClustersResponse,
   DiffResponse,
   EventsResponse,
+  ImageUpdate,
   ImageUpdatesResponse,
   LogsResponse,
   ManifestResponse,
@@ -199,3 +200,26 @@ function useAppMutation(verb: MutationVerb) {
 export const useReconcileApp = () => useAppMutation('reconcile')
 export const useSuspendApp = () => useAppMutation('suspend')
 export const useResumeApp = () => useAppMutation('resume')
+
+// imageActionTarget describes the kind we're acting on. The list view
+// surfaces ImagePolicy rows (one per row); we drive mutations against
+// the same kind/ns/name that the list returned.
+function imageActionURL(u: ImageUpdate, verb: MutationVerb, kind = 'ImagePolicy') {
+  const parts = [u.clusterId, u.ns, kind, u.name].map(encodeURIComponent)
+  return `/api/v1/image-updates/${parts.join('/')}/${verb}`
+}
+
+function useImageMutation(verb: MutationVerb) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (u: ImageUpdate) =>
+      fetchJSON<{ status: string; verb: string }>(imageActionURL(u, verb), { method: 'POST' }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['image-updates'] })
+    },
+  })
+}
+
+export const useReconcileImage = () => useImageMutation('reconcile')
+export const useSuspendImage = () => useImageMutation('suspend')
+export const useResumeImage = () => useImageMutation('resume')

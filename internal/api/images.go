@@ -154,6 +154,10 @@ func imagePolicyToUpdate(e *cluster.Entry, p *imagereflv1.ImagePolicy, repoIdx m
 		latestTag = p.Status.LatestRef.Tag
 	}
 
+	status := sourceStatus(p.Status.Conditions)
+	if p.Spec.Suspend {
+		status = "paused"
+	}
 	return types.ImageUpdate{
 		ID:        sourceID(e.Name, p.Namespace, "ImagePolicy", p.Name),
 		Name:      p.Name,
@@ -163,9 +167,10 @@ func imagePolicyToUpdate(e *cluster.Entry, p *imagereflv1.ImagePolicy, repoIdx m
 		Image:     image,
 		LatestTag: latestTag,
 		Policy:    policyChoiceLabel(p.Spec.Policy),
-		Status:    sourceStatus(p.Status.Conditions),
+		Status:    status,
 		Age:       humanizeAge(lastReconcileTime(p.Status.Conditions)),
 		Message:   sourceMessage(p.Status.Conditions),
+		Suspended: p.Spec.Suspend,
 	}
 }
 

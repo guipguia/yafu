@@ -183,10 +183,11 @@ export interface ImageUpdate {
   latestTag?: string
   /** "semver:RANGE" | "alphabetical" | "numerical" | "" */
   policy: string
-  /** ready | failing | progressing */
+  /** ready | failing | progressing | paused */
   status: string
   age: string
   message?: string
+  suspended: boolean
 }
 
 export interface ImageUpdatesResponse {

@@ -61,5 +61,5 @@ rules:
       - imagerepositories
       - imagepolicies
       - imageupdateautomations
-    verbs: ["get", "list", "watch"]
+    verbs: ["get", "list", "watch", "patch"]
 {{- end }}
