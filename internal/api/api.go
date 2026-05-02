@@ -37,7 +37,7 @@ func RegisterAPI(mux *http.ServeMux, deps Deps) {
 
 	mux.HandleFunc("GET /api/v1/version", handleVersion)
 	mux.HandleFunc("GET /api/v1/whoami", handleWhoami)
-	streamH := &streamHandler{hub: deps.Hub}
+	streamH := &streamHandler{hub: deps.Hub, policy: deps.Policy}
 	mux.HandleFunc("GET /api/v1/stream", streamH.serve)
 
 	ch := &clustersHandler{registry: deps.Registry, policy: deps.Policy}

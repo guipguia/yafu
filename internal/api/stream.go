@@ -16,7 +16,8 @@ import (
 // allowed to read. Heartbeats keep proxies and load balancers from
 // dropping idle connections.
 type streamHandler struct {
-	hub *watch.Hub
+	hub    *watch.Hub
+	policy auth.Policy
 }
 
 // serve writes Server-Sent Events. The handler returns when the
@@ -61,7 +62,10 @@ func (h *streamHandler) serve(w http.ResponseWriter, r *http.Request) {
 			}
 			// Filter by RBAC: a user that can't read the cluster
 			// shouldn't even know its resources are changing.
-			if !canReadCluster(id, ev.Cluster) {
+			// Same verb the list endpoints use ("get") — a user
+			// who can list /api/v1/applications?cluster=X should
+			// also see invalidations for cluster X.
+			if !h.policy.Authorize(id, "get", ev.Cluster) {
 				continue
 			}
 			b, err := json.Marshal(ev)
@@ -75,20 +79,4 @@ func (h *streamHandler) serve(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		}
 	}
-}
-
-// canReadCluster checks the policy that handlers also use; we keep
-// the lookup local to avoid threading another dep through the
-// handler. Identity-less callers (anonymous mode) are allowed
-// through — they get the same view as the rest of the API.
-func canReadCluster(id auth.Identity, clusterName string) bool {
-	// We don't have the policy here without plumbing it in; for v0.1
-	// we accept that anonymous and authenticated users alike see
-	// every invalidation event. The list endpoints they fetch in
-	// response still apply RBAC, so no privileged data leaks — only
-	// "something changed on cluster X". Plumb the policy through
-	// when this becomes a leak we care about (tracked in roadmap).
-	_ = id
-	_ = clusterName
-	return true
 }
