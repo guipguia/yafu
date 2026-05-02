@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"testing"
 	"time"
 
@@ -154,6 +155,58 @@ func TestParseTail(t *testing.T) {
 		if got := parseTail(c.in); got != c.want {
 			t.Errorf("parseTail(%q) = %d, want %d", c.in, got, c.want)
 		}
+	}
+}
+
+func TestWriteSSE(t *testing.T) {
+	cases := []struct {
+		name      string
+		event     string
+		data      string
+		wantBytes string
+	}{
+		{
+			name:      "unnamed message single line",
+			event:     "",
+			data:      "hello",
+			wantBytes: "data: hello\n\n",
+		},
+		{
+			name:      "named event",
+			event:     "open",
+			data:      "ready",
+			wantBytes: "event: open\ndata: ready\n\n",
+		},
+		{
+			name:      "multiline data emits one data: per line",
+			event:     "",
+			data:      "line one\nline two\nline three",
+			wantBytes: "data: line one\ndata: line two\ndata: line three\n\n",
+		},
+		{
+			name:      "error event",
+			event:     "error",
+			data:      "boom",
+			wantBytes: "event: error\ndata: boom\n\n",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			writeSSE(&buf, c.event, c.data)
+			if got := buf.String(); got != c.wantBytes {
+				t.Errorf("got %q\nwant %q", got, c.wantBytes)
+			}
+		})
+	}
+}
+
+func TestContainerSuffix(t *testing.T) {
+	if got := containerSuffix(""); got != "" {
+		t.Errorf("empty container should produce no suffix, got %q", got)
+	}
+	if got := containerSuffix("app"); got != " container=app" {
+		t.Errorf("got %q, want \" container=app\"", got)
 	}
 }
 

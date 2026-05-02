@@ -48,6 +48,7 @@ func RegisterAPI(mux *http.ServeMux, deps Deps) {
 	mux.HandleFunc("GET /api/v1/applications/{cluster}/{ns}/{kind}/{name}/manifest", ah.manifest)
 	mux.HandleFunc("GET /api/v1/applications/{cluster}/{ns}/{kind}/{name}/diff", ah.diff)
 	mux.HandleFunc("GET /api/v1/applications/{cluster}/{ns}/{kind}/{name}/logs", ah.logs)
+	mux.HandleFunc("GET /api/v1/applications/{cluster}/{ns}/{kind}/{name}/logs/stream", ah.logsStream)
 
 	sh := &sourcesHandler{registry: deps.Registry, policy: deps.Policy}
 	mux.HandleFunc("GET /api/v1/sources", sh.list)

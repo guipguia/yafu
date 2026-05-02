@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import type { Application } from '@/lib/types'
 import {
   useAppDiff,
@@ -199,6 +199,7 @@ function OverviewTab({ app }: { app: Application }) {
 function LogsTab({ app }: { app: Application }) {
   const [pod, setPod] = useState<string | undefined>(undefined)
   const [container, setContainer] = useState<string | undefined>(undefined)
+  const [live, setLive] = useState(false)
   const { data, isLoading, error } = useAppLogs(app, pod, container, 200)
 
   const pods = data?.pods ?? []
@@ -207,6 +208,16 @@ function LogsTab({ app }: { app: Application }) {
   const truncated = !!data?.truncated
   const selectedPod = pods.find((p) => `${p.ns}/${p.name}` === data?.selected)
   const containers = selectedPod?.containers ?? []
+  const activePod = pod ?? data?.selected
+  const activeContainer = container ?? data?.container
+
+  const liveLines = useLogStream(live ? buildStreamURL(app, activePod, activeContainer) : null)
+
+  // When the user toggles "live" off, drop any tail-only state.
+  useEffect(() => {
+    if (!live) liveLines.clear()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [live])
 
   return (
     <div style={{ padding: 18 }}>
@@ -227,6 +238,7 @@ function LogsTab({ app }: { app: Application }) {
               onChange={(e) => {
                 setPod(e.target.value || undefined)
                 setContainer(undefined)
+                liveLines.clear()
               }}
               style={selectStyle}
             >
@@ -241,7 +253,10 @@ function LogsTab({ app }: { app: Application }) {
             {containers.length > 1 && (
               <select
                 value={container ?? data?.container ?? ''}
-                onChange={(e) => setContainer(e.target.value || undefined)}
+                onChange={(e) => {
+                  setContainer(e.target.value || undefined)
+                  liveLines.clear()
+                }}
                 style={{ ...selectStyle, marginLeft: 6 }}
               >
                 {containers.map((c) => (
@@ -250,8 +265,8 @@ function LogsTab({ app }: { app: Application }) {
               </select>
             )}
           </div>
-          <div className="panel-actions">
-            {truncated && (
+          <div className="panel-actions" style={{ gap: 10 }}>
+            {truncated && !live && (
               <span
                 className="mono"
                 style={{ fontSize: 10.5, color: 'oklch(78% 0.16 75)' }}
@@ -259,6 +274,28 @@ function LogsTab({ app }: { app: Application }) {
                 truncated · last 256 KiB
               </span>
             )}
+            <label
+              className="mono"
+              style={{
+                fontSize: 11.5,
+                color: 'oklch(80% 0 0)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                cursor: pods.length > 0 ? 'pointer' : 'not-allowed',
+                opacity: pods.length > 0 ? 1 : 0.5,
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={live}
+                disabled={pods.length === 0}
+                onChange={(e) => setLive(e.target.checked)}
+                style={{ accentColor: 'oklch(72% 0.18 275)' }}
+              />
+              {live && <span className="pulse" />}
+              live
+            </label>
           </div>
         </div>
         <div
@@ -274,10 +311,10 @@ function LogsTab({ app }: { app: Application }) {
             whiteSpace: 'pre',
           }}
         >
-          {isLoading && !logsText && (
+          {isLoading && !logsText && !live && (
             <span style={{ color: 'oklch(60% 0 0)' }}>Loading…</span>
           )}
-          {error && (
+          {error && !live && (
             <span style={{ color: 'oklch(70% 0.18 25)' }}>error: {error.message}</span>
           )}
           {!isLoading && !error && pods.length === 0 && (
@@ -285,11 +322,26 @@ function LogsTab({ app }: { app: Application }) {
               {note || 'No pods matched this application in its inventory namespaces.'}
             </span>
           )}
-          {logsText}
-          {!logsText && pods.length > 0 && !isLoading && (
+          {!live && logsText}
+          {!live && !logsText && pods.length > 0 && !isLoading && (
             <span style={{ color: 'oklch(60% 0 0)' }}>
               # selected pod produced no log lines yet
             </span>
+          )}
+          {live && (
+            <>
+              {liveLines.lines.length === 0 && (
+                <span style={{ color: 'oklch(60% 0 0)' }}>
+                  # waiting for live output…
+                </span>
+              )}
+              {liveLines.lines.join('\n')}
+              {liveLines.error && (
+                <div style={{ color: 'oklch(70% 0.18 25)', marginTop: 6 }}>
+                  stream: {liveLines.error}
+                </div>
+              )}
+            </>
           )}
         </div>
         {note && (
@@ -308,6 +360,70 @@ function LogsTab({ app }: { app: Application }) {
       </div>
     </div>
   )
+}
+
+// useLogStream subscribes to /logs/stream via EventSource. Returns a
+// rolling buffer of received lines (capped at 1000) plus any terminal
+// error, plus a clear() to reset state when the user switches pods.
+function useLogStream(url: string | null) {
+  const [lines, setLines] = useState<string[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const linesRef = useRef<string[]>([])
+
+  useEffect(() => {
+    if (!url) return
+    setError(null)
+    const es = new EventSource(url)
+
+    const append = (line: string) => {
+      linesRef.current = [...linesRef.current, line].slice(-1000)
+      setLines(linesRef.current)
+    }
+
+    es.onmessage = (ev) => append(ev.data)
+    es.addEventListener('open', (ev: Event) => {
+      const e = ev as MessageEvent
+      if (e.data) append(`# ${e.data}`)
+    })
+    es.addEventListener('error', (ev: Event) => {
+      const e = ev as MessageEvent
+      if (e.data) setError(String(e.data))
+    })
+    es.addEventListener('close', () => {
+      es.close()
+    })
+    es.onerror = () => {
+      // Connection-level error (network, server gone). Don't overwrite
+      // a more specific server-sent error message if we already have one.
+      setError((cur) => cur ?? 'connection lost')
+    }
+
+    return () => {
+      es.close()
+    }
+  }, [url])
+
+  const clear = () => {
+    linesRef.current = []
+    setLines([])
+    setError(null)
+  }
+
+  return { lines, error, clear }
+}
+
+function buildStreamURL(
+  app: Application,
+  pod: string | undefined,
+  container: string | undefined,
+): string | null {
+  if (!pod) return null
+  const base = `/api/v1/applications/${[app.clusterId, app.ns, app.kind, app.name]
+    .map(encodeURIComponent)
+    .join('/')}/logs/stream`
+  const params = new URLSearchParams({ pod })
+  if (container) params.set('container', container)
+  return `${base}?${params.toString()}`
 }
 
 const selectStyle: CSSProperties = {

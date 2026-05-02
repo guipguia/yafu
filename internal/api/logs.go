@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -274,6 +275,141 @@ func fetchPodLogs(ctx context.Context, kube kubernetes.Interface, ns, name, cont
 		return string(data[:maxLogBytes]), true, nil
 	}
 	return string(data), false, nil
+}
+
+// logsStream upgrades a request to Server-Sent Events and pipes pod
+// log lines as they arrive. Each `data:` event carries one line; SSE
+// comments (`:` prefix) are heartbeats every 15s so reverse proxies
+// don't close the idle connection. The stream ends naturally when the
+// pod exits or the client disconnects.
+func (h *applicationsHandler) logsStream(w http.ResponseWriter, r *http.Request) {
+	clusterID := r.PathValue("cluster")
+
+	id, _ := auth.IdentityFrom(r.Context())
+	if !h.policy.Authorize(id, "get", clusterID) {
+		writeError(w, http.StatusForbidden, fmt.Sprintf("identity is not allowed to get cluster %q", clusterID))
+		return
+	}
+
+	if h.registry == nil {
+		writeError(w, http.StatusServiceUnavailable, "registry not initialised")
+		return
+	}
+	e, ok := h.registry.Get(clusterID)
+	if !ok {
+		writeError(w, http.StatusNotFound, fmt.Sprintf("cluster %q not registered", clusterID))
+		return
+	}
+	if !e.Status().Reachable {
+		writeError(w, http.StatusServiceUnavailable, "cluster unreachable")
+		return
+	}
+	if e.Kube == nil {
+		writeError(w, http.StatusServiceUnavailable, "kubernetes clientset unavailable on this cluster")
+		return
+	}
+
+	q := r.URL.Query()
+	podSpec := q.Get("pod") // expected as "<ns>/<name>"
+	parts := strings.SplitN(podSpec, "/", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		writeError(w, http.StatusBadRequest, "?pod=<ns>/<name> is required")
+		return
+	}
+	podNS, podName := parts[0], parts[1]
+	container := q.Get("container")
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		writeError(w, http.StatusInternalServerError, "streaming unsupported on this connection")
+		return
+	}
+
+	tailLines := int64(100)
+	opts := &corev1.PodLogOptions{
+		Container: container,
+		Follow:    true,
+		TailLines: &tailLines,
+	}
+	stream, err := e.Kube.CoreV1().Pods(podNS).GetLogs(podName, opts).Stream(r.Context())
+	if err != nil {
+		writeError(w, http.StatusBadGateway, "could not open log stream: "+err.Error())
+		return
+	}
+	defer stream.Close()
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no") // tell nginx not to buffer
+	w.WriteHeader(http.StatusOK)
+
+	writeSSE(w, "open", fmt.Sprintf("streaming %s/%s%s", podNS, podName, containerSuffix(container)))
+	flusher.Flush()
+
+	heartbeat := time.NewTicker(15 * time.Second)
+	defer heartbeat.Stop()
+
+	lines := make(chan string, 64)
+	scanErr := make(chan error, 1)
+	go func() {
+		defer close(lines)
+		scanner := bufio.NewScanner(stream)
+		// 1 MiB buffer per line — k8s log lines can carry stack traces.
+		scanner.Buffer(make([]byte, 64*1024), 1024*1024)
+		for scanner.Scan() {
+			select {
+			case lines <- scanner.Text():
+			case <-r.Context().Done():
+				return
+			}
+		}
+		if err := scanner.Err(); err != nil && err != io.EOF {
+			scanErr <- err
+		}
+	}()
+
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case <-heartbeat.C:
+			_, _ = io.WriteString(w, ": heartbeat\n\n")
+			flusher.Flush()
+		case line, ok := <-lines:
+			if !ok {
+				writeSSE(w, "close", "stream ended")
+				flusher.Flush()
+				return
+			}
+			writeSSE(w, "", line)
+			flusher.Flush()
+		case err := <-scanErr:
+			writeSSE(w, "error", err.Error())
+			flusher.Flush()
+			return
+		}
+	}
+}
+
+// writeSSE emits one Server-Sent Event. Empty event name → unnamed
+// (default "message" type on the EventSource side).
+func writeSSE(w io.Writer, event, data string) {
+	if event != "" {
+		_, _ = fmt.Fprintf(w, "event: %s\n", event)
+	}
+	// data: lines must not contain raw newlines; split and emit each.
+	for _, line := range strings.Split(data, "\n") {
+		_, _ = fmt.Fprintf(w, "data: %s\n", line)
+	}
+	_, _ = io.WriteString(w, "\n")
+}
+
+func containerSuffix(c string) string {
+	if c == "" {
+		return ""
+	}
+	return " container=" + c
 }
 
 func humanizeAgeFrom(start, now time.Time) string {
