@@ -25,6 +25,14 @@ export interface ClustersResponse {
   clusters: Cluster[]
 }
 
+export interface WhoamiResponse {
+  subject: string
+  email?: string
+  name?: string
+  groups?: string[]
+  isAnonymous: boolean
+}
+
 export interface Application {
   id: string
   name: string

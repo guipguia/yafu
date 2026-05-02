@@ -13,9 +13,19 @@ import type {
   ManifestResponse,
   SourcesResponse,
   TreeResponse,
+  WhoamiResponse,
 } from './types'
 
 const POLL_MS = 5_000
+
+export function useWhoami() {
+  return useQuery<WhoamiResponse>({
+    queryKey: ['whoami'],
+    queryFn: () => fetchJSON<WhoamiResponse>('/api/v1/whoami'),
+    // whoami doesn't change often; refresh on window-focus, not on a poll.
+    refetchInterval: false,
+  })
+}
 
 export function useClusters() {
   return useQuery<ClustersResponse>({

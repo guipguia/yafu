@@ -1,7 +1,7 @@
 import { Fragment } from 'react'
 import type { ComponentType, SVGProps } from 'react'
 import type { Cluster } from '@/lib/types'
-import { useApplications, useClusters } from '@/lib/queries'
+import { useApplications, useClusters, useWhoami } from '@/lib/queries'
 import { Ic } from './Icons'
 
 export type PageId =
@@ -110,13 +110,57 @@ export function Sidebar({ active, onNav, side, cluster, onClusterClick }: Props)
           )
         })}
       </nav>
-      <div className="side-foot">
-        <div className="avatar">YA</div>
-        <div className="side-foot-text" style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 500 }}>yafu</div>
-          <div className="mono" style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>v0.1 alpha</div>
+      <SidebarFoot />
+    </aside>
+  )
+}
+
+function SidebarFoot() {
+  const { data: me } = useWhoami()
+  const displayName = me?.name || me?.email || me?.subject || 'yafu'
+  const subline = me?.isAnonymous === false ? (me?.email || me?.subject) : 'v0.1 alpha'
+  const initials = (displayName.match(/[A-Za-z0-9]/g) ?? []).slice(0, 2).join('').toUpperCase() || 'YA'
+
+  return (
+    <div className="side-foot">
+      <div className="avatar">{initials}</div>
+      <div className="side-foot-text" style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontSize: 12,
+            fontWeight: 500,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          title={displayName}
+        >
+          {displayName}
+        </div>
+        <div
+          className="mono"
+          style={{
+            fontSize: 10.5,
+            color: 'var(--ink-3)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          title={subline}
+        >
+          {subline}
         </div>
       </div>
-    </aside>
+      {me && !me.isAnonymous && (
+        <a
+          href="/auth/logout"
+          className="icon-btn"
+          title="Sign out"
+          style={{ color: 'var(--ink-3)' }}
+        >
+          ⎋
+        </a>
+      )}
+    </div>
   )
 }
