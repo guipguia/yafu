@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import type { Application } from '@/lib/types'
+import { useReconcileApp, useResumeApp, useSuspendApp } from '@/lib/queries'
 import { StatusChip } from '@/components/StatusChip'
 import { ComingSoon } from '@/components/States'
 import { Ic } from '@/components/Icons'
@@ -23,6 +24,12 @@ interface Props {
 
 export function AppDetailDrawer({ app, onClose }: Props) {
   const [tab, setTab] = useState<Tab>('overview')
+  const reconcile = useReconcileApp()
+  const suspend = useSuspendApp()
+  const resume = useResumeApp()
+
+  const busy = reconcile.isPending || suspend.isPending || resume.isPending
+  const lastError = reconcile.error || suspend.error || resume.error
 
   const dotColor =
     app.status === 'failing' ? 'var(--err)' :
@@ -63,15 +70,40 @@ export function AppDetailDrawer({ app, onClose }: Props) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
-            <button className="btn" disabled title="Coming in v0.2"><Ic.refresh /> Reconcile</button>
+            <button className="btn" onClick={() => reconcile.mutate(app)} disabled={busy} title="Trigger reconcile">
+              <Ic.refresh /> {reconcile.isPending ? 'Reconciling…' : 'Reconcile'}
+            </button>
             {app.suspended ? (
-              <button className="btn" disabled title="Coming in v0.2"><Ic.play /> Resume</button>
+              <button className="btn" onClick={() => resume.mutate(app)} disabled={busy} title="Resume reconciliation">
+                <Ic.play /> {resume.isPending ? 'Resuming…' : 'Resume'}
+              </button>
             ) : (
-              <button className="btn" disabled title="Coming in v0.2"><Ic.pause /> Suspend</button>
+              <button className="btn" onClick={() => suspend.mutate(app)} disabled={busy} title="Suspend reconciliation">
+                <Ic.pause /> {suspend.isPending ? 'Suspending…' : 'Suspend'}
+              </button>
             )}
             <button className="icon-btn" onClick={onClose}><Ic.x /></button>
           </div>
         </div>
+
+        {lastError && (
+          <div
+            className="panel"
+            style={{
+              margin: '0 18px 0',
+              padding: '8px 12px',
+              borderLeft: '2px solid var(--err)',
+              borderRadius: 0,
+            }}
+          >
+            <span className="mono" style={{ fontSize: 11, color: 'var(--err)' }}>
+              action failed:
+            </span>{' '}
+            <span className="mono" style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>
+              {lastError.message}
+            </span>
+          </div>
+        )}
 
         <div className="tabs">
           {TABS.map((t) => (

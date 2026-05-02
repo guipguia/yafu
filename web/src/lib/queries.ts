@@ -1,7 +1,8 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchJSON } from './api'
 import type {
   AlertsResponse,
+  Application,
   ApplicationsResponse,
   ClustersResponse,
   EventsResponse,
@@ -61,3 +62,29 @@ export function useEvents(clusterId?: string) {
     refetchInterval: POLL_MS,
   })
 }
+
+// ---------- mutations ----------
+
+type MutationVerb = 'reconcile' | 'suspend' | 'resume'
+
+function appActionURL(app: Application, verb: MutationVerb): string {
+  const parts = [app.clusterId, app.ns, app.kind, app.name].map(encodeURIComponent)
+  return `/api/v1/applications/${parts.join('/')}/${verb}`
+}
+
+function useAppMutation(verb: MutationVerb) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (app: Application) =>
+      fetchJSON<{ status: string; verb: string }>(appActionURL(app, verb), { method: 'POST' }),
+    onSuccess: () => {
+      // Force the next refresh to surface the controller's response.
+      void qc.invalidateQueries({ queryKey: ['applications'] })
+      void qc.invalidateQueries({ queryKey: ['clusters'] })
+    },
+  })
+}
+
+export const useReconcileApp = () => useAppMutation('reconcile')
+export const useSuspendApp = () => useAppMutation('suspend')
+export const useResumeApp = () => useAppMutation('resume')
