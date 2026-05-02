@@ -1,5 +1,11 @@
 import { useState } from 'react'
-import { useApplications, useClusters } from '@/lib/queries'
+import {
+  useApplications,
+  useClusters,
+  useReconcileApp,
+  useResumeApp,
+  useSuspendApp,
+} from '@/lib/queries'
 import type { Application } from '@/lib/types'
 import { StatusChip } from '@/components/StatusChip'
 import { KindBadge } from '@/components/KindBadge'
@@ -20,12 +26,16 @@ interface FilterState {
 export function AppsPage({ onOpen }: Props) {
   const { data, isLoading, error } = useApplications()
   const { data: clustersData } = useClusters()
+  const reconcile = useReconcileApp()
+  const suspend = useSuspendApp()
+  const resume = useResumeApp()
   const [filter, setFilter] = useState<FilterState>({ status: 'all', kind: 'all', cluster: 'all' })
   const [q, setQ] = useState('')
 
   const apps = data?.applications ?? []
   const clusters = clustersData?.clusters ?? []
   const fanoutErrors = data?.errors ?? []
+  const lastError = reconcile.error || suspend.error || resume.error
 
   const filtered = apps.filter((a) => {
     if (filter.status !== 'all' && a.status !== filter.status) return false
@@ -108,6 +118,20 @@ export function AppsPage({ onOpen }: Props) {
         </span>
       </div>
 
+      {lastError && (
+        <div
+          className="panel"
+          style={{ padding: '8px 14px', marginBottom: 12, borderLeft: '2px solid var(--err)' }}
+        >
+          <span className="mono" style={{ fontSize: 11, color: 'var(--err)' }}>
+            action failed:
+          </span>{' '}
+          <span className="mono" style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>
+            {lastError.message}
+          </span>
+        </div>
+      )}
+
       {fanoutErrors.length > 0 && (
         <div
           className="panel"
@@ -151,6 +175,7 @@ export function AppsPage({ onOpen }: Props) {
                 <th>Sync</th>
                 <th>Source · Revision</th>
                 <th>Last Reconcile</th>
+                <th style={{ width: 72 }} />
               </tr>
             </thead>
             <tbody>
@@ -207,6 +232,56 @@ export function AppsPage({ onOpen }: Props) {
                     </span>
                   </td>
                   <td className="ago">{a.age}</td>
+                  <td>
+                    <div
+                      style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        className="icon-btn"
+                        aria-label={`Reconcile ${a.name}`}
+                        title="Reconcile"
+                        disabled={
+                          (reconcile.isPending && reconcile.variables?.id === a.id) ||
+                          (suspend.isPending && suspend.variables?.id === a.id) ||
+                          (resume.isPending && resume.variables?.id === a.id)
+                        }
+                        onClick={() => reconcile.mutate(a)}
+                      >
+                        <Ic.refresh />
+                      </button>
+                      {a.suspended ? (
+                        <button
+                          className="icon-btn"
+                          aria-label={`Resume ${a.name}`}
+                          title="Resume"
+                          disabled={
+                            (reconcile.isPending && reconcile.variables?.id === a.id) ||
+                            (suspend.isPending && suspend.variables?.id === a.id) ||
+                            (resume.isPending && resume.variables?.id === a.id)
+                          }
+                          onClick={() => resume.mutate(a)}
+                        >
+                          <Ic.play />
+                        </button>
+                      ) : (
+                        <button
+                          className="icon-btn"
+                          aria-label={`Suspend ${a.name}`}
+                          title="Suspend"
+                          disabled={
+                            (reconcile.isPending && reconcile.variables?.id === a.id) ||
+                            (suspend.isPending && suspend.variables?.id === a.id) ||
+                            (resume.isPending && resume.variables?.id === a.id)
+                          }
+                          onClick={() => suspend.mutate(a)}
+                        >
+                          <Ic.pause />
+                        </button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -1,11 +1,22 @@
-import { useAlerts } from '@/lib/queries'
+import {
+  useAlerts,
+  useReconcileAlert,
+  useResumeAlert,
+  useSuspendAlert,
+} from '@/lib/queries'
 import { StatusChip } from '@/components/StatusChip'
 import { EmptyState, ErrorState, LoadingState } from '@/components/States'
+import { Ic } from '@/components/Icons'
 
 export function AlertsPage() {
   const { data, isLoading, error } = useAlerts()
+  const reconcile = useReconcileAlert()
+  const suspend = useSuspendAlert()
+  const resume = useResumeAlert()
+
   const alerts = data?.alerts ?? []
   const fanoutErrors = data?.errors ?? []
+  const lastError = reconcile.error || suspend.error || resume.error
 
   const paused = alerts.filter((a) => a.suspended).length
 
@@ -24,6 +35,20 @@ export function AlertsPage() {
           </div>
         </div>
       </div>
+
+      {lastError && (
+        <div
+          className="panel"
+          style={{ padding: '8px 14px', marginBottom: 12, borderLeft: '2px solid var(--err)' }}
+        >
+          <span className="mono" style={{ fontSize: 11, color: 'var(--err)' }}>
+            action failed:
+          </span>{' '}
+          <span className="mono" style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>
+            {lastError.message}
+          </span>
+        </div>
+      )}
 
       {fanoutErrors.length > 0 && (
         <div
@@ -64,43 +89,84 @@ export function AlertsPage() {
                 <th>Target</th>
                 <th>Status</th>
                 <th>Age</th>
+                <th />
               </tr>
             </thead>
             <tbody>
-              {alerts.map((a) => (
-                <tr key={a.id}>
-                  <td>
-                    <span
-                      className="row-status"
-                      style={{
-                        background:
-                          a.status === 'paused' ? 'var(--paused)' :
-                          a.severity === 'error' ? 'var(--err)' :
-                          'var(--ok)',
-                      }}
-                    />
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span className="name">{a.name}</span>
-                      <span className="ns">{a.ns}</span>
-                    </div>
-                  </td>
-                  <td className="mono" style={{ fontSize: 11.5 }}>{a.cluster}</td>
-                  <td className="mono" style={{ fontSize: 11.5, color: a.provider === 'missing' ? 'var(--err)' : 'var(--ink-2)' }}>
-                    {a.provider}
-                  </td>
-                  <td>
-                    <span className={`chip ${a.severity === 'error' ? 'err' : 'info'}`}>
-                      <span className="d" />
-                      {a.severity}
-                    </span>
-                  </td>
-                  <td className="mono" style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>{a.target || '—'}</td>
-                  <td><StatusChip status={a.status === 'paused' ? 'paused' : 'healthy'} /></td>
-                  <td className="ago">{a.age}</td>
-                </tr>
-              ))}
+              {alerts.map((a) => {
+                const busy =
+                  (reconcile.isPending && reconcile.variables?.id === a.id) ||
+                  (suspend.isPending && suspend.variables?.id === a.id) ||
+                  (resume.isPending && resume.variables?.id === a.id)
+                return (
+                  <tr key={a.id}>
+                    <td>
+                      <span
+                        className="row-status"
+                        style={{
+                          background:
+                            a.status === 'paused' ? 'var(--paused)' :
+                            a.severity === 'error' ? 'var(--err)' :
+                            'var(--ok)',
+                        }}
+                      />
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span className="name">{a.name}</span>
+                        <span className="ns">{a.ns}</span>
+                      </div>
+                    </td>
+                    <td className="mono" style={{ fontSize: 11.5 }}>{a.cluster}</td>
+                    <td className="mono" style={{ fontSize: 11.5, color: a.provider === 'missing' ? 'var(--err)' : 'var(--ink-2)' }}>
+                      {a.provider}
+                    </td>
+                    <td>
+                      <span className={`chip ${a.severity === 'error' ? 'err' : 'info'}`}>
+                        <span className="d" />
+                        {a.severity}
+                      </span>
+                    </td>
+                    <td className="mono" style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>{a.target || '—'}</td>
+                    <td><StatusChip status={a.status === 'paused' ? 'paused' : 'healthy'} /></td>
+                    <td className="ago">{a.age}</td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                        <button
+                          className="icon-btn"
+                          aria-label={`Reconcile ${a.name}`}
+                          title="Reconcile"
+                          disabled={busy}
+                          onClick={() => reconcile.mutate(a)}
+                        >
+                          <Ic.refresh />
+                        </button>
+                        {a.suspended ? (
+                          <button
+                            className="icon-btn"
+                            aria-label={`Resume ${a.name}`}
+                            title="Resume"
+                            disabled={busy}
+                            onClick={() => resume.mutate(a)}
+                          >
+                            <Ic.play />
+                          </button>
+                        ) : (
+                          <button
+                            className="icon-btn"
+                            aria-label={`Suspend ${a.name}`}
+                            title="Suspend"
+                            disabled={busy}
+                            onClick={() => suspend.mutate(a)}
+                          >
+                            <Ic.pause />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

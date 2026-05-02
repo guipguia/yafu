@@ -14,6 +14,7 @@ import {
   useAppTree,
   useReconcileApp,
   useResumeApp,
+  useRollbackApp,
   useSuspendApp,
 } from '@/lib/queries'
 import { StatusChip } from '@/components/StatusChip'
@@ -1349,7 +1350,21 @@ function TreeTab({ app }: { app: Application }) {
 
 function HistoryTab({ app }: { app: Application }) {
   const { data, isLoading, error } = useAppHistory(app)
+  const rollback = useRollbackApp()
   const entries = data?.entries ?? []
+  const [selectedRev, setSelectedRev] = useState<string | null>(null)
+
+  const isHelm = app.kind === 'HelmRelease'
+  const selectableEntries = entries.filter((e) => !e.current)
+  const canRollback = isHelm && selectedRev !== null
+
+  const onRollback = () => {
+    if (!selectedRev) return
+    if (!window.confirm(`Roll back ${app.name} to ${selectedRev}? This patches spec.chart.spec.version and triggers a forced reconcile.`)) {
+      return
+    }
+    rollback.mutate({ app, revision: selectedRev })
+  }
 
   return (
     <div style={{ padding: 18 }}>
@@ -1358,7 +1373,39 @@ function HistoryTab({ app }: { app: Application }) {
           <div className="panel-title">
             <span className="lab">History</span>Recent revisions
           </div>
+          <div className="panel-actions">
+            <button
+              className="btn"
+              onClick={onRollback}
+              disabled={!canRollback || rollback.isPending}
+              title={
+                !isHelm
+                  ? 'Kustomizations roll forward — revert in Git instead'
+                  : !selectedRev
+                  ? 'Select a previous revision below'
+                  : `Roll back to ${selectedRev}`
+              }
+            >
+              <Ic.refresh />{' '}
+              {rollback.isPending ? 'Rolling back…' : 'Rollback to selected'}
+            </button>
+          </div>
         </div>
+
+        {rollback.error && (
+          <div
+            style={{
+              padding: '8px 14px',
+              borderBottom: '1px solid var(--line)',
+              fontSize: 11.5,
+              color: 'var(--err)',
+              fontFamily: 'var(--font-mono)',
+            }}
+            role="alert"
+          >
+            rollback failed: {rollback.error.message}
+          </div>
+        )}
         {isLoading && entries.length === 0 && <LoadingState label="Loading history…" />}
         {error && <ErrorState message={error.message} />}
         {!isLoading && !error && entries.length === 0 && (
@@ -1374,6 +1421,7 @@ function HistoryTab({ app }: { app: Application }) {
             <thead>
               <tr>
                 <th />
+                <th />
                 <th>Revision</th>
                 <th>Action</th>
                 <th>App version</th>
@@ -1382,33 +1430,54 @@ function HistoryTab({ app }: { app: Application }) {
               </tr>
             </thead>
             <tbody>
-              {entries.map((e, i) => (
-                <tr key={i}>
-                  <td>
-                    <span
-                      className="row-status"
-                      style={{
-                        background:
-                          e.status === 'failed' ? 'var(--err)' :
-                          e.status === 'superseded' ? 'var(--paused)' :
-                          'var(--ok)',
-                      }}
-                    />
-                  </td>
-                  <td>
-                    <span className="mono" style={{ color: 'var(--accent-ink)' }}>{e.revision}</span>
-                    {e.current && (
-                      <span className="chip info" style={{ marginLeft: 8 }}>current</span>
-                    )}
-                  </td>
-                  <td className="mono" style={{ fontSize: 11.5 }}>{e.action || '—'}</td>
-                  <td className="mono" style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>{e.appVersion || '—'}</td>
-                  <td>
-                    <StatusChip status={e.status === 'deployed' ? 'healthy' : e.status === 'failed' ? 'failing' : 'paused'} label={e.status} />
-                  </td>
-                  <td className="ago">{e.timestamp ? formatEventTime(e.timestamp) : '—'}</td>
-                </tr>
-              ))}
+              {entries.map((e, i) => {
+                const isSelected = selectedRev === e.revision
+                const selectable = isHelm && !e.current && selectableEntries.length > 0
+                return (
+                  <tr
+                    key={i}
+                    className={isSelected ? 'selected' : undefined}
+                    onClick={selectable ? () => setSelectedRev(e.revision) : undefined}
+                    style={{ cursor: selectable ? 'pointer' : 'default' }}
+                  >
+                    <td style={{ width: 24 }}>
+                      {selectable && (
+                        <input
+                          type="radio"
+                          name="rollback-target"
+                          aria-label={`Select revision ${e.revision}`}
+                          checked={isSelected}
+                          onChange={() => setSelectedRev(e.revision)}
+                          onClick={(ev) => ev.stopPropagation()}
+                        />
+                      )}
+                    </td>
+                    <td>
+                      <span
+                        className="row-status"
+                        style={{
+                          background:
+                            e.status === 'failed' ? 'var(--err)' :
+                            e.status === 'superseded' ? 'var(--paused)' :
+                            'var(--ok)',
+                        }}
+                      />
+                    </td>
+                    <td>
+                      <span className="mono" style={{ color: 'var(--accent-ink)' }}>{e.revision}</span>
+                      {e.current && (
+                        <span className="chip info" style={{ marginLeft: 8 }}>current</span>
+                      )}
+                    </td>
+                    <td className="mono" style={{ fontSize: 11.5 }}>{e.action || '—'}</td>
+                    <td className="mono" style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>{e.appVersion || '—'}</td>
+                    <td>
+                      <StatusChip status={e.status === 'deployed' ? 'healthy' : e.status === 'failed' ? 'failing' : 'paused'} label={e.status} />
+                    </td>
+                    <td className="ago">{e.timestamp ? formatEventTime(e.timestamp) : '—'}</td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         )}

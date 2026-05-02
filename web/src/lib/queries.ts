@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchJSON } from './api'
 import type {
+  Alert,
   AlertsResponse,
   Application,
   ApplicationsResponse,
@@ -222,6 +223,32 @@ export const useReconcileApp = () => useAppMutation('reconcile')
 export const useSuspendApp = () => useAppMutation('suspend')
 export const useResumeApp = () => useAppMutation('resume')
 
+// useRollbackApp targets HelmRelease only. The backend returns 422
+// for Kustomization with a clear error message; the frontend
+// disables the button for non-HelmRelease apps so this path
+// shouldn't fire for those, but if it does, the error surfaces
+// in the standard mutation.error path.
+export function useRollbackApp() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ app, revision }: { app: Application; revision: string }) => {
+      const parts = [app.clusterId, app.ns, app.kind, app.name].map(encodeURIComponent)
+      return fetchJSON<{ status: string }>(
+        `/api/v1/applications/${parts.join('/')}/rollback`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ revision }),
+        },
+      )
+    },
+    onSuccess: (_data, { app }) => {
+      void qc.invalidateQueries({ queryKey: ['applications'] })
+      void qc.invalidateQueries({ queryKey: ['history', app.id] })
+    },
+  })
+}
+
 // imageActionTarget describes the kind we're acting on. The list view
 // surfaces ImagePolicy rows (one per row); we drive mutations against
 // the same kind/ns/name that the list returned.
@@ -268,3 +295,55 @@ function useSourceMutation(verb: MutationVerb) {
 export const useReconcileSource = () => useSourceMutation('reconcile')
 export const useSuspendSource = () => useSourceMutation('suspend')
 export const useResumeSource = () => useSourceMutation('resume')
+
+// Alerts route through /api/v1/alerts. The list endpoint returns
+// Alert rows; mutations also hit Provider and Receiver via the same
+// path, kind-dispatched server-side. The UI today only exposes
+// actions on the Alert row, but the backend supports the full set.
+function alertActionURL(a: Alert, verb: MutationVerb, kind = 'Alert') {
+  const parts = [a.clusterId, a.ns, kind, a.name].map(encodeURIComponent)
+  return `/api/v1/alerts/${parts.join('/')}/${verb}`
+}
+
+function useAlertMutation(verb: MutationVerb) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (a: Alert) =>
+      fetchJSON<{ status: string; verb: string }>(alertActionURL(a, verb), { method: 'POST' }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['alerts'] })
+    },
+  })
+}
+
+export const useReconcileAlert = () => useAlertMutation('reconcile')
+export const useSuspendAlert = () => useAlertMutation('suspend')
+export const useResumeAlert = () => useAlertMutation('resume')
+
+// useReconcileAllApps fans the reconcile mutation across every
+// application returned by the apps list. Used by the Topbar
+// "Reconcile all" button. Each per-app mutation hits the same
+// endpoint as useReconcileApp; we fire them in parallel and fail
+// fast on the first non-retryable error so the user sees a clear
+// failure rather than silent partial success.
+export function useReconcileAllApps() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (apps: Application[]) => {
+      const results = await Promise.allSettled(
+        apps.map((app) =>
+          fetchJSON<{ status: string }>(appActionURL(app, 'reconcile'), { method: 'POST' }),
+        ),
+      )
+      const failed = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[]
+      if (failed.length > 0) {
+        throw new Error(`${failed.length} of ${apps.length} reconciles failed: ${(failed[0].reason as Error).message}`)
+      }
+      return { count: apps.length }
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['applications'] })
+      void qc.invalidateQueries({ queryKey: ['clusters'] })
+    },
+  })
+}

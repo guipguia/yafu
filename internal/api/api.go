@@ -48,6 +48,7 @@ func RegisterAPI(mux *http.ServeMux, deps Deps) {
 	mux.HandleFunc("POST /api/v1/applications/{cluster}/{ns}/{kind}/{name}/reconcile", ah.reconcile)
 	mux.HandleFunc("POST /api/v1/applications/{cluster}/{ns}/{kind}/{name}/suspend", ah.suspend)
 	mux.HandleFunc("POST /api/v1/applications/{cluster}/{ns}/{kind}/{name}/resume", ah.resume)
+	mux.HandleFunc("POST /api/v1/applications/{cluster}/{ns}/{kind}/{name}/rollback", ah.rollback)
 	mux.HandleFunc("GET /api/v1/applications/{cluster}/{ns}/{kind}/{name}/history", ah.history)
 	mux.HandleFunc("GET /api/v1/applications/{cluster}/{ns}/{kind}/{name}/tree", ah.tree)
 	mux.HandleFunc("GET /api/v1/applications/{cluster}/{ns}/{kind}/{name}/manifest", ah.manifest)
@@ -70,6 +71,15 @@ func RegisterAPI(mux *http.ServeMux, deps Deps) {
 
 	alh := &alertsHandler{registry: deps.Registry, policy: deps.Policy}
 	mux.HandleFunc("GET /api/v1/alerts", alh.list)
+
+	amh := &alertMutationsHandler{deps: mutationDeps{
+		registry: deps.Registry,
+		policy:   deps.Policy,
+		audit:    deps.Audit,
+	}}
+	mux.HandleFunc("POST /api/v1/alerts/{cluster}/{ns}/{kind}/{name}/reconcile", amh.reconcile)
+	mux.HandleFunc("POST /api/v1/alerts/{cluster}/{ns}/{kind}/{name}/suspend", amh.suspend)
+	mux.HandleFunc("POST /api/v1/alerts/{cluster}/{ns}/{kind}/{name}/resume", amh.resume)
 
 	eh := &eventsHandler{registry: deps.Registry, policy: deps.Policy}
 	mux.HandleFunc("GET /api/v1/events", eh.list)
