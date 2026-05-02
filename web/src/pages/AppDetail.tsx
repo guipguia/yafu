@@ -37,6 +37,22 @@ export function AppDetailDrawer({ app, onClose }: Props) {
   const reconcile = useReconcileApp()
   const suspend = useSuspendApp()
   const resume = useResumeApp()
+  const closeBtnRef = useRef<HTMLButtonElement | null>(null)
+
+  // Move focus into the drawer on open and restore it to the row that
+  // opened it on close. Esc closes the drawer.
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null
+    closeBtnRef.current?.focus()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      previouslyFocused?.focus?.()
+    }
+  }, [onClose])
 
   const busy = reconcile.isPending || suspend.isPending || resume.isPending
   const lastError = reconcile.error || suspend.error || resume.error
@@ -48,15 +64,20 @@ export function AppDetailDrawer({ app, onClose }: Props) {
     app.status === 'progressing' ? 'var(--info)' :
     'var(--ok)'
 
+  const titleId = 'app-detail-title'
+
   return (
     <>
-      <div className="drawer-scrim" onClick={onClose} />
-      <div className="drawer">
+      <div className="drawer-scrim" onClick={onClose} aria-hidden="true" />
+      <div className="drawer" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <div className="drawer-head">
           <div className="titles">
             <div className="kind-badge">{app.kind}</div>
-            <h2>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor }} />
+            <h2 id={titleId}>
+              <span
+                aria-hidden="true"
+                style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor }}
+              />
               {app.name}
               {app.suspended && (
                 <span className="chip paused"><Ic.pause /> Suspended</span>
@@ -92,7 +113,14 @@ export function AppDetailDrawer({ app, onClose }: Props) {
                 <Ic.pause /> {suspend.isPending ? 'Suspending…' : 'Suspend'}
               </button>
             )}
-            <button className="icon-btn" onClick={onClose}><Ic.x /></button>
+            <button
+              className="icon-btn"
+              onClick={onClose}
+              aria-label="Close application details"
+              ref={closeBtnRef}
+            >
+              <Ic.x />
+            </button>
           </div>
         </div>
 
@@ -115,19 +143,43 @@ export function AppDetailDrawer({ app, onClose }: Props) {
           </div>
         )}
 
-        <div className="tabs">
-          {TABS.map((t) => (
-            <div
-              key={t.id}
-              className={`tab ${tab === t.id ? 'active' : ''}`}
-              onClick={() => setTab(t.id)}
-            >
-              {t.label}
-            </div>
-          ))}
+        <div className="tabs" role="tablist" aria-label="Application details sections">
+          {TABS.map((t) => {
+            const selected = tab === t.id
+            return (
+              <button
+                key={t.id}
+                role="tab"
+                type="button"
+                id={`app-tab-${t.id}`}
+                aria-selected={selected}
+                aria-controls={`app-tabpanel-${t.id}`}
+                tabIndex={selected ? 0 : -1}
+                className={`tab ${selected ? 'active' : ''}`}
+                onClick={() => setTab(t.id)}
+                onKeyDown={(e) => {
+                  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
+                  e.preventDefault()
+                  const i = TABS.findIndex((x) => x.id === tab)
+                  const next = e.key === 'ArrowRight'
+                    ? TABS[(i + 1) % TABS.length]
+                    : TABS[(i - 1 + TABS.length) % TABS.length]
+                  setTab(next.id)
+                  document.getElementById(`app-tab-${next.id}`)?.focus()
+                }}
+              >
+                {t.label}
+              </button>
+            )
+          })}
         </div>
 
-        <div className="drawer-body">
+        <div
+          className="drawer-body"
+          role="tabpanel"
+          id={`app-tabpanel-${tab}`}
+          aria-labelledby={`app-tab-${tab}`}
+        >
           {tab === 'overview' && <OverviewTab app={app} />}
           {tab === 'tree' && <TreeTab app={app} />}
           {tab === 'diff' && <DiffTab app={app} />}

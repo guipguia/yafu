@@ -88,22 +88,29 @@ export function Sidebar({ active, onNav, side, cluster, onClusterClick }: Props)
           <span className="chev"><Ic.chev /></span>
         </button>
       </div>
-      <nav className="nav">
+      <nav className="nav" aria-label="Main">
         {items.map((it) => {
           const Icon = it.icon
+          const isActive = active === it.id
           return (
             <Fragment key={it.id}>
-              {it.section && <div className="nav-section">{it.section}</div>}
+              {it.section && (
+                <div className="nav-section" role="presentation">{it.section}</div>
+              )}
               <a
-                className={`nav-item ${active === it.id ? 'active' : ''}`}
+                className={`nav-item ${isActive ? 'active' : ''}`}
                 onClick={(e) => { e.preventDefault(); onNav(it.id) }}
                 href="#"
                 title={side === 'icons' ? it.label : undefined}
+                aria-label={side === 'icons' ? it.label : undefined}
+                aria-current={isActive ? 'page' : undefined}
               >
-                <span className="ico"><Icon /></span>
+                <span className="ico" aria-hidden="true"><Icon /></span>
                 <span className="lab">{it.label}</span>
                 {it.count !== undefined && (
-                  <span className={`count ${it.countCls || ''}`}>{it.count}</span>
+                  <span className={`count ${it.countCls || ''}`} aria-label={`${it.count} items`}>
+                    {it.count}
+                  </span>
                 )}
               </a>
             </Fragment>

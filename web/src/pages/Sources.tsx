@@ -186,7 +186,16 @@ export function SourcesPage() {
                   <td className="mono" style={{ fontSize: 11, color: 'var(--accent-ink)' }}>{s.revision || '—'}</td>
                   <td className="mono" style={{ fontSize: 11.5 }}>{s.interval || '—'}</td>
                   <td className="ago">{s.age}</td>
-                  <td><button className="icon-btn" disabled title="v0.2"><Ic.more /></button></td>
+                  <td>
+                    <button
+                      className="icon-btn"
+                      disabled
+                      title="v0.2"
+                      aria-label={`Actions for ${s.name} (coming in v0.2)`}
+                    >
+                      <Ic.more />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

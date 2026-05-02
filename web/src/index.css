@@ -85,6 +85,20 @@
 * {
   box-sizing: border-box;
 }
+:focus:not(:focus-visible) {
+  outline: none;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 html,
 body {
   margin: 0;
@@ -475,6 +489,15 @@ textarea {
   background: var(--bg-3);
   color: var(--ink);
 }
+.icon-btn:focus-visible,
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.icon-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
 
 /* Content scroll */
 .content {
@@ -695,6 +718,13 @@ textarea {
 }
 .tbl tbody tr.selected td {
   background: var(--accent-soft);
+}
+.tbl tbody tr:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.tbl tbody tr:focus-visible td {
+  background: var(--bg-2);
 }
 .tbl .name {
   font-weight: 500;
@@ -1020,11 +1050,18 @@ textarea {
   font-size: 12.5px;
   color: var(--ink-3);
   cursor: pointer;
+  border: 0;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
   display: flex;
   align-items: center;
   gap: 6px;
+  background: transparent;
+  font-family: inherit;
+}
+.tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 .tab:hover {
   color: var(--ink);

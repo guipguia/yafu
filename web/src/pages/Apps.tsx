@@ -156,7 +156,21 @@ export function AppsPage({ onOpen }: Props) {
             </thead>
             <tbody>
               {filtered.map((a) => (
-                <tr key={a.id} onClick={() => onOpen(a)}>
+                <tr
+                  key={a.id}
+                  onClick={() => onOpen(a)}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Open ${a.kind} ${a.name} in ${a.cluster}`}
+                  onKeyDown={(e) => {
+                    // Only fire when the row itself has focus, so Enter on
+                    // the inner ⋯ button doesn't also open the drawer.
+                    if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+                      e.preventDefault()
+                      onOpen(a)
+                    }
+                  }}
+                >
                   <td>
                     <span
                       className="row-status"
@@ -195,7 +209,11 @@ export function AppsPage({ onOpen }: Props) {
                   </td>
                   <td className="ago">{a.age}</td>
                   <td>
-                    <button className="icon-btn" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      className="icon-btn"
+                      aria-label={`Actions for ${a.name}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <Ic.more />
                     </button>
                   </td>
