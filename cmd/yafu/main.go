@@ -30,6 +30,7 @@ import (
 	"github.com/guipguia/yafu/internal/metrics"
 	"github.com/guipguia/yafu/internal/server"
 	"github.com/guipguia/yafu/internal/version"
+	"github.com/guipguia/yafu/internal/watch"
 )
 
 func main() {
@@ -145,6 +146,15 @@ func main() {
 
 	auditLog := audit.New(os.Stdout)
 
+	hub := watch.NewHub()
+	if registry != nil {
+		go (&watch.Manager{
+			Hub:      hub,
+			Registry: registry,
+			Logger:   logger,
+		}).Run(ctx)
+	}
+
 	srv := server.New(server.Config{
 		Addr:     *addr,
 		Logger:   logger,
@@ -152,6 +162,7 @@ func main() {
 		Auth:     authSet,
 		Policy:   policy,
 		Audit:    auditLog,
+		Hub:      hub,
 	})
 
 	if err := srv.Run(ctx); err != nil && !errors.Is(err, http.ErrServerClosed) {

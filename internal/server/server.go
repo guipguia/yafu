@@ -13,6 +13,7 @@ import (
 	"github.com/guipguia/yafu/internal/audit"
 	"github.com/guipguia/yafu/internal/auth"
 	"github.com/guipguia/yafu/internal/cluster"
+	"github.com/guipguia/yafu/internal/watch"
 	"github.com/guipguia/yafu/internal/web"
 )
 
@@ -33,6 +34,10 @@ type Config struct {
 	// Audit receives one Record per privileged action. nil → no-op
 	// (but main.go always provides one writing to stdout).
 	Audit *audit.Logger
+
+	// Hub is the watch event bus consumed by /api/v1/stream. nil
+	// is allowed (the stream still emits heartbeats).
+	Hub *watch.Hub
 }
 
 type Server struct {
@@ -74,6 +79,7 @@ func New(cfg Config) *Server {
 		Registry: cfg.Registry,
 		Policy:   cfg.Policy,
 		Audit:    cfg.Audit,
+		Hub:      cfg.Hub,
 	})
 	mux.Handle("/api/", cfg.Auth.Middleware(apiMux))
 

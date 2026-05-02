@@ -11,12 +11,13 @@ import (
 
 // Clients bundles the three handles yafu needs to talk to a remote cluster:
 //
-//	Client    — controller-runtime typed client for List/Get/Patch
+//	Client    — controller-runtime typed client for List/Get/Patch +
+//	            Watch (used by the watch hub for live invalidations)
 //	Discovery — version + Flux installation probe
 //	Kube      — clientset, used for subresources controller-runtime can't
 //	            reach (today: Pod logs)
 type Clients struct {
-	Client    client.Client
+	Client    client.WithWatch
 	Discovery discovery.DiscoveryInterface
 	Kube      kubernetes.Interface
 }
@@ -24,7 +25,7 @@ type Clients struct {
 // NewClients builds the three clients for the given REST config, registered
 // with the remote scheme.
 func NewClients(cfg *rest.Config) (Clients, error) {
-	c, err := client.New(cfg, client.Options{Scheme: RemoteScheme()})
+	c, err := client.NewWithWatch(cfg, client.Options{Scheme: RemoteScheme()})
 	if err != nil {
 		return Clients{}, fmt.Errorf("build controller-runtime client: %w", err)
 	}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Application } from '@/lib/types'
 import { useClusters } from '@/lib/queries'
+import { useInvalidationStream } from '@/lib/stream'
 import { Sidebar, type PageId } from '@/components/Sidebar'
 import { Topbar } from '@/components/Topbar'
 import { FleetPage, type FleetLayout } from '@/pages/Fleet'
@@ -61,6 +62,10 @@ export default function App() {
   const [openApp, setOpenApp] = useState<Application | null>(null)
   const { data: clustersData } = useClusters()
   const clusters = clustersData?.clusters ?? []
+  // Live invalidations from /api/v1/stream — when a Flux resource
+  // changes, refetch the matching list/detail queries instead of
+  // waiting for the polling fallback to catch up.
+  useInvalidationStream()
 
   const update = <K extends keyof Prefs>(key: K, value: Prefs[K]) => {
     setPrefs((prev) => {

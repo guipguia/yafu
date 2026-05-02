@@ -37,7 +37,7 @@ type Entry struct {
 	Environment   string
 	FluxNamespace string
 
-	Client    client.Client
+	Client    client.WithWatch
 	Discovery discovery.DiscoveryInterface
 	Kube      kubernetes.Interface
 

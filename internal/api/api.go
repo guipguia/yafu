@@ -6,6 +6,7 @@ import (
 	"github.com/guipguia/yafu/internal/audit"
 	"github.com/guipguia/yafu/internal/auth"
 	"github.com/guipguia/yafu/internal/cluster"
+	"github.com/guipguia/yafu/internal/watch"
 )
 
 // Deps are the runtime dependencies injected into the HTTP API.
@@ -15,6 +16,9 @@ type Deps struct {
 	// Audit receives one Record per privileged action. nil is treated as
 	// audit.Discard().
 	Audit *audit.Logger
+	// Hub is the cross-cluster watch event bus. nil disables the live
+	// /api/v1/stream invalidations and falls back to heartbeats only.
+	Hub *watch.Hub
 }
 
 // RegisterPublic mounts unauthenticated routes — kubelet probes,
@@ -33,7 +37,8 @@ func RegisterAPI(mux *http.ServeMux, deps Deps) {
 
 	mux.HandleFunc("GET /api/v1/version", handleVersion)
 	mux.HandleFunc("GET /api/v1/whoami", handleWhoami)
-	mux.HandleFunc("GET /api/v1/stream", handleStream)
+	streamH := &streamHandler{hub: deps.Hub}
+	mux.HandleFunc("GET /api/v1/stream", streamH.serve)
 
 	ch := &clustersHandler{registry: deps.Registry, policy: deps.Policy}
 	mux.HandleFunc("GET /api/v1/clusters", ch.list)
