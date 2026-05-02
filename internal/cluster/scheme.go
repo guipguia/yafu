@@ -3,6 +3,8 @@ package cluster
 import (
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	kustomizev1 "github.com/fluxcd/kustomize-controller/api/v1"
+	notificationv1 "github.com/fluxcd/notification-controller/api/v1"
+	notificationv1beta3 "github.com/fluxcd/notification-controller/api/v1beta3"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -11,12 +13,15 @@ import (
 
 // RemoteScheme returns a runtime.Scheme registered with every type yafu
 // reads from a remote cluster: core/apps from client-go, plus the Flux
-// source-, kustomize-, and helm-controller APIs.
+// source-, kustomize-, helm-, and notification-controller APIs (v1
+// Receiver and v1beta3 Alert/Provider).
 func RemoteScheme() *runtime.Scheme {
 	s := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(s))
 	utilruntime.Must(sourcev1.AddToScheme(s))
 	utilruntime.Must(kustomizev1.AddToScheme(s))
 	utilruntime.Must(helmv2.AddToScheme(s))
+	utilruntime.Must(notificationv1.AddToScheme(s))
+	utilruntime.Must(notificationv1beta3.AddToScheme(s))
 	return s
 }

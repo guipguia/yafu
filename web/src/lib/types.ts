@@ -80,6 +80,51 @@ export interface SourcesResponse {
   errors?: ClusterError[]
 }
 
+export interface Alert {
+  id: string
+  name: string
+  cluster: string
+  clusterId: string
+  ns: string
+  /** slack | pagerduty | webhook | … | "missing" */
+  provider: string
+  /** info | error */
+  severity: string
+  target?: string
+  /** healthy | paused */
+  status: string
+  suspended: boolean
+  age: string
+}
+
+export interface AlertsResponse {
+  alerts: Alert[]
+  errors?: ClusterError[]
+}
+
+export interface FluxEvent {
+  id: string
+  /** RFC3339 timestamp */
+  t: string
+  cluster: string
+  clusterId: string
+  ns: string
+  /** ok | warn | err */
+  kind: string
+  /** Normal | Warning */
+  type: string
+  reason: string
+  message: string
+  /** "<Kind>/<name>" of the involved object */
+  object: string
+  source: string
+}
+
+export interface EventsResponse {
+  events: FluxEvent[]
+  errors?: ClusterError[]
+}
+
 // ---------- Drawer placeholder types (mock until v0.2 wires real data) ----------
 
 export type EventKind = 'ok' | 'warn' | 'err'

@@ -5,6 +5,8 @@ go 1.26.0
 require (
 	github.com/fluxcd/helm-controller/api v1.5.4
 	github.com/fluxcd/kustomize-controller/api v1.8.4
+	github.com/fluxcd/notification-controller/api v1.8.4
+	github.com/fluxcd/pkg/apis/meta v1.25.1
 	github.com/fluxcd/source-controller/api v1.8.3
 	github.com/google/uuid v1.6.0
 	github.com/prometheus/client_golang v1.23.2
@@ -25,7 +27,6 @@ require (
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/fluxcd/pkg/apis/acl v0.9.0 // indirect
 	github.com/fluxcd/pkg/apis/kustomize v1.15.1 // indirect
-	github.com/fluxcd/pkg/apis/meta v1.25.1 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
