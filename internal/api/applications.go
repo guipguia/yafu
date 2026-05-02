@@ -15,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/guipguia/yafu/internal/api/types"
+	"github.com/guipguia/yafu/internal/audit"
 	"github.com/guipguia/yafu/internal/auth"
 	"github.com/guipguia/yafu/internal/cluster"
 )
@@ -22,6 +23,7 @@ import (
 type applicationsHandler struct {
 	registry cluster.Registry
 	policy   auth.Policy
+	audit    *audit.Logger
 }
 
 func (h *applicationsHandler) list(w http.ResponseWriter, r *http.Request) {

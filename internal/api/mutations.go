@@ -13,8 +13,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/guipguia/yafu/internal/audit"
 	"github.com/guipguia/yafu/internal/auth"
 	"github.com/guipguia/yafu/internal/cluster"
+	"github.com/guipguia/yafu/internal/reqid"
 )
 
 // reconcileAnnotation is the well-known annotation Flux watches: setting it
@@ -47,8 +49,9 @@ func (h *applicationsHandler) resume(w http.ResponseWriter, r *http.Request) {
 }
 
 // mutate is the shared boilerplate: extract path params, authorize,
-// resolve the cluster, run the supplied action with a 10s budget, and
-// translate any error into a clean status code + JSON envelope.
+// resolve the cluster, run the supplied action with a 10s budget,
+// translate any error into a clean status code + JSON envelope, and
+// emit one audit record per request regardless of outcome.
 func (h *applicationsHandler) mutate(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -61,28 +64,48 @@ func (h *applicationsHandler) mutate(
 	ns := r.PathValue("ns")
 	kind := r.PathValue("kind")
 	name := r.PathValue("name")
+
+	id, _ := auth.IdentityFrom(r.Context())
+	rec := audit.Record{
+		RequestID:  reqid.From(r.Context()),
+		Identity:   audit.Identity{Subject: id.Subject, Email: id.Email, Groups: id.Groups},
+		Verb:       verb,
+		Resource:   audit.Resource{Cluster: clusterID, Ns: ns, Kind: kind, Name: name},
+		RemoteAddr: r.RemoteAddr,
+	}
+	defer func() { h.audit.Record(rec) }()
+
 	if clusterID == "" || ns == "" || kind == "" || name == "" {
-		writeError(w, http.StatusBadRequest, "missing path params")
+		rec.Outcome = audit.OutcomeError
+		rec.Error = "missing path params"
+		writeError(w, http.StatusBadRequest, rec.Error)
 		return
 	}
 
-	id, _ := auth.IdentityFrom(r.Context())
 	if !h.policy.Authorize(id, verb, clusterID) {
+		rec.Outcome = audit.OutcomeDenied
+		rec.Error = "policy denied"
 		writeError(w, http.StatusForbidden, fmt.Sprintf("identity is not allowed to %q on cluster %q", verb, clusterID))
 		return
 	}
 
 	if h.registry == nil {
-		writeError(w, http.StatusServiceUnavailable, "registry not initialised")
+		rec.Outcome = audit.OutcomeError
+		rec.Error = "registry not initialised"
+		writeError(w, http.StatusServiceUnavailable, rec.Error)
 		return
 	}
 	e, ok := h.registry.Get(clusterID)
 	if !ok {
+		rec.Outcome = audit.OutcomeError
+		rec.Error = "unknown cluster"
 		writeError(w, http.StatusNotFound, fmt.Sprintf("cluster %q not registered", clusterID))
 		return
 	}
 	if !e.Status().Reachable {
-		writeError(w, http.StatusServiceUnavailable, "cluster unreachable")
+		rec.Outcome = audit.OutcomeError
+		rec.Error = "cluster unreachable"
+		writeError(w, http.StatusServiceUnavailable, rec.Error)
 		return
 	}
 
@@ -90,6 +113,8 @@ func (h *applicationsHandler) mutate(
 	defer cancel()
 
 	if err := action(ctx, e, ns, kind, name); err != nil {
+		rec.Outcome = audit.OutcomeError
+		rec.Error = err.Error()
 		switch {
 		case apierrors.IsNotFound(err):
 			writeError(w, http.StatusNotFound, err.Error())
@@ -103,6 +128,7 @@ func (h *applicationsHandler) mutate(
 		return
 	}
 
+	rec.Outcome = audit.OutcomeOK
 	w.WriteHeader(http.StatusAccepted)
 	_ = json.NewEncoder(w).Encode(map[string]string{
 		"status":  "accepted",

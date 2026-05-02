@@ -22,6 +22,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	yafuv1alpha1 "github.com/guipguia/yafu/api/v1alpha1"
+	"github.com/guipguia/yafu/internal/audit"
 	"github.com/guipguia/yafu/internal/auth"
 	"github.com/guipguia/yafu/internal/cluster"
 	"github.com/guipguia/yafu/internal/controllers"
@@ -112,12 +113,15 @@ func main() {
 		logger.Warn("no --rbac-file set; every authenticated user has full access")
 	}
 
+	auditLog := audit.New(os.Stdout)
+
 	srv := server.New(server.Config{
 		Addr:     *addr,
 		Logger:   logger,
 		Registry: registry,
 		Auth:     authMW,
 		Policy:   policy,
+		Audit:    auditLog,
 	})
 
 	if err := srv.Run(ctx); err != nil && !errors.Is(err, http.ErrServerClosed) {

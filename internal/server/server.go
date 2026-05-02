@@ -10,6 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/guipguia/yafu/internal/api"
+	"github.com/guipguia/yafu/internal/audit"
 	"github.com/guipguia/yafu/internal/auth"
 	"github.com/guipguia/yafu/internal/cluster"
 	"github.com/guipguia/yafu/internal/web"
@@ -28,6 +29,10 @@ type Config struct {
 	// The zero value denies everything; main.go uses
 	// auth.DefaultAllowAllPolicy when --rbac-file is not provided.
 	Policy auth.Policy
+
+	// Audit receives one Record per privileged action. nil → no-op
+	// (but main.go always provides one writing to stdout).
+	Audit *audit.Logger
 }
 
 type Server struct {
@@ -52,7 +57,11 @@ func New(cfg Config) *Server {
 
 	// Authenticated API routes mounted on a sub-mux behind cfg.Auth.
 	apiMux := http.NewServeMux()
-	api.RegisterAPI(apiMux, api.Deps{Registry: cfg.Registry, Policy: cfg.Policy})
+	api.RegisterAPI(apiMux, api.Deps{
+		Registry: cfg.Registry,
+		Policy:   cfg.Policy,
+		Audit:    cfg.Audit,
+	})
 	mux.Handle("/api/", cfg.Auth(apiMux))
 
 	handler := chain(mux,

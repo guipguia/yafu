@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/guipguia/yafu/internal/metrics"
+	"github.com/guipguia/yafu/internal/reqid"
 )
 
 type middleware func(http.Handler) http.Handler
@@ -22,17 +23,9 @@ func chain(h http.Handler, mws ...middleware) http.Handler {
 	return h
 }
 
-type ctxKey int
-
-const requestIDKey ctxKey = iota
-
-// RequestID returns the request id attached to ctx, or "" when absent.
-func RequestID(ctx context.Context) string {
-	if v, ok := ctx.Value(requestIDKey).(string); ok {
-		return v
-	}
-	return ""
-}
+// RequestID is preserved as a thin wrapper for callers that imported it
+// from this package before reqid was extracted.
+func RequestID(ctx context.Context) string { return reqid.From(ctx) }
 
 // withRequestID echoes an incoming X-Request-ID header (if present) or
 // generates a new UUID, then stashes it in the request context and the
@@ -45,8 +38,7 @@ func withRequestID() middleware {
 				id = uuid.NewString()
 			}
 			w.Header().Set("X-Request-ID", id)
-			ctx := context.WithValue(r.Context(), requestIDKey, id)
-			next.ServeHTTP(w, r.WithContext(ctx))
+			next.ServeHTTP(w, r.WithContext(reqid.With(r.Context(), id)))
 		})
 	}
 }
@@ -70,7 +62,7 @@ func withObservability(logger *slog.Logger) middleware {
 				"path", r.URL.Path,
 				"status", rec.status,
 				"duration_ms", elapsed.Milliseconds(),
-				"request_id", RequestID(r.Context()),
+				"request_id", reqid.From(r.Context()),
 			)
 		})
 	}
@@ -85,7 +77,7 @@ func withRecover(logger *slog.Logger) middleware {
 						"panic", rec,
 						"stack", string(debug.Stack()),
 						"path", r.URL.Path,
-						"request_id", RequestID(r.Context()),
+						"request_id", reqid.From(r.Context()),
 					)
 					http.Error(w, "internal server error", http.StatusInternalServerError)
 				}

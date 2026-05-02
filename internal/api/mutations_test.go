@@ -1,9 +1,12 @@
 package api
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/guipguia/yafu/internal/audit"
 	"github.com/guipguia/yafu/internal/auth"
 	"github.com/guipguia/yafu/internal/cluster"
 )
@@ -22,7 +26,7 @@ func TestMutate_ReconcileSetsAnnotation(t *testing.T) {
 	e := newTestEntry("alpha", "Alpha", k)
 
 	reg := &stubRegistry{entries: []*cluster.Entry{e}}
-	h := &applicationsHandler{registry: reg, policy: auth.DefaultAllowAllPolicy}
+	h := &applicationsHandler{registry: reg, policy: auth.DefaultAllowAllPolicy, audit: audit.Discard()}
 
 	req := newMutationRequest(http.MethodPost, "/api/v1/applications/alpha/shop/Kustomization/checkout-api/reconcile",
 		map[string]string{"cluster": "alpha", "ns": "shop", "kind": "Kustomization", "name": "checkout-api"})
@@ -52,7 +56,7 @@ func TestMutate_SuspendThenResume(t *testing.T) {
 	e := newTestEntry("alpha", "Alpha", k)
 
 	reg := &stubRegistry{entries: []*cluster.Entry{e}}
-	h := &applicationsHandler{registry: reg, policy: auth.DefaultAllowAllPolicy}
+	h := &applicationsHandler{registry: reg, policy: auth.DefaultAllowAllPolicy, audit: audit.Discard()}
 
 	// Suspend.
 	w := httptest.NewRecorder()
@@ -89,7 +93,7 @@ func TestMutate_HelmReleaseSuspend(t *testing.T) {
 	e := newTestEntry("alpha", "Alpha", hr)
 
 	reg := &stubRegistry{entries: []*cluster.Entry{e}}
-	h := &applicationsHandler{registry: reg, policy: auth.DefaultAllowAllPolicy}
+	h := &applicationsHandler{registry: reg, policy: auth.DefaultAllowAllPolicy, audit: audit.Discard()}
 
 	w := httptest.NewRecorder()
 	h.suspend(w, newMutationRequest(http.MethodPost, "/x", map[string]string{
@@ -114,7 +118,7 @@ func TestMutate_RBACForbidden(t *testing.T) {
 			{Subjects: []string{"*"}, Verbs: []string{"get"}, Clusters: []string{"*"}, Action: auth.ActionAllow},
 		},
 	}
-	h := &applicationsHandler{registry: reg, policy: policy}
+	h := &applicationsHandler{registry: reg, policy: policy, audit: audit.Discard()}
 
 	w := httptest.NewRecorder()
 	h.reconcile(w, newMutationRequest(http.MethodPost, "/x", map[string]string{
@@ -128,7 +132,7 @@ func TestMutate_RBACForbidden(t *testing.T) {
 func TestMutate_UnknownCluster(t *testing.T) {
 	e := newTestEntry("alpha", "Alpha")
 	reg := &stubRegistry{entries: []*cluster.Entry{e}}
-	h := &applicationsHandler{registry: reg, policy: auth.DefaultAllowAllPolicy}
+	h := &applicationsHandler{registry: reg, policy: auth.DefaultAllowAllPolicy, audit: audit.Discard()}
 
 	w := httptest.NewRecorder()
 	h.reconcile(w, newMutationRequest(http.MethodPost, "/x", map[string]string{
@@ -142,7 +146,7 @@ func TestMutate_UnknownCluster(t *testing.T) {
 func TestMutate_UnsupportedKind(t *testing.T) {
 	e := newTestEntry("alpha", "Alpha")
 	reg := &stubRegistry{entries: []*cluster.Entry{e}}
-	h := &applicationsHandler{registry: reg, policy: auth.DefaultAllowAllPolicy}
+	h := &applicationsHandler{registry: reg, policy: auth.DefaultAllowAllPolicy, audit: audit.Discard()}
 
 	w := httptest.NewRecorder()
 	h.reconcile(w, newMutationRequest(http.MethodPost, "/x", map[string]string{
@@ -162,4 +166,69 @@ func newMutationRequest(method, url string, pathValues map[string]string) *http.
 		req.SetPathValue(k, v)
 	}
 	return req
+}
+
+func TestMutate_AuditRecordEmittedOnSuccess(t *testing.T) {
+	now := metav1.Now()
+	k := mkKustomization("checkout-api", "shop", false, true, "main@7f3c1d9", now)
+	e := newTestEntry("alpha", "Alpha", k)
+
+	var buf bytes.Buffer
+	auditLog := audit.New(&buf)
+	reg := &stubRegistry{entries: []*cluster.Entry{e}}
+	h := &applicationsHandler{registry: reg, policy: auth.DefaultAllowAllPolicy, audit: auditLog}
+
+	req := newMutationRequest(http.MethodPost, "/x", map[string]string{
+		"cluster": "alpha", "ns": "shop", "kind": "Kustomization", "name": "checkout-api",
+	})
+	req = req.WithContext(auth.WithIdentity(req.Context(), auth.Identity{
+		Subject: "uid-42", Email: "maria@acme.example", Groups: []string{"platform-admins"},
+	}))
+	w := httptest.NewRecorder()
+	h.reconcile(w, req)
+
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("status = %d", w.Code)
+	}
+
+	var rec audit.Record
+	line := strings.TrimSpace(buf.String())
+	if err := json.Unmarshal([]byte(line), &rec); err != nil {
+		t.Fatalf("audit line not JSON: %v\n%s", err, line)
+	}
+	if rec.Verb != "reconcile" || rec.Outcome != audit.OutcomeOK {
+		t.Errorf("rec = %+v, want verb=reconcile outcome=ok", rec)
+	}
+	if rec.Identity.Subject != "uid-42" || rec.Identity.Email != "maria@acme.example" {
+		t.Errorf("identity wrong in audit: %+v", rec.Identity)
+	}
+	if rec.Resource.Cluster != "alpha" || rec.Resource.Name != "checkout-api" {
+		t.Errorf("resource wrong in audit: %+v", rec.Resource)
+	}
+}
+
+func TestMutate_AuditRecordEmittedOnDeny(t *testing.T) {
+	e := newTestEntry("alpha", "Alpha")
+	policy := auth.Policy{DefaultAction: auth.ActionDeny}
+	var buf bytes.Buffer
+	auditLog := audit.New(&buf)
+
+	reg := &stubRegistry{entries: []*cluster.Entry{e}}
+	h := &applicationsHandler{registry: reg, policy: policy, audit: auditLog}
+
+	w := httptest.NewRecorder()
+	h.reconcile(w, newMutationRequest(http.MethodPost, "/x", map[string]string{
+		"cluster": "alpha", "ns": "shop", "kind": "Kustomization", "name": "checkout-api",
+	}))
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403", w.Code)
+	}
+
+	var rec audit.Record
+	if err := json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &rec); err != nil {
+		t.Fatalf("audit line not JSON: %v", err)
+	}
+	if rec.Outcome != audit.OutcomeDenied {
+		t.Errorf("outcome = %q, want denied", rec.Outcome)
+	}
 }
