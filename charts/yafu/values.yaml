@@ -61,9 +61,34 @@ resources:
     cpu: 50m
     memory: 64Mi
 
-# Cluster-scoped read access to Flux + core resources.
+# Cluster-scoped Kubernetes RBAC for the controller's ServiceAccount.
+# Distinct from `auth` below, which controls who can talk to the yafu API.
 rbac:
   create: true
+
+# How yafu authenticates incoming HTTP requests:
+#   - "anonymous"  every request gets a synthetic identity. NOT for prod.
+#   - "header"     trust X-Forwarded-User / -Email / -Groups injected by a
+#                  reverse proxy (oauth2-proxy, Pomerium, ingress
+#                  auth-snippet, …). The proxy MUST strip these headers
+#                  from the public Internet — yafu trusts what arrives.
+#   - "oidc"       native OIDC. Not yet implemented.
+auth:
+  mode: anonymous
+
+# Authorization policy applied AFTER auth. When `policy` is empty, every
+# authenticated user gets full access. Provide either an inline policy
+# document below or set `existingConfigMap` to mount a Secret/ConfigMap
+# you manage yourself.
+authzPolicy:
+  # Inline YAML policy. Shipped as a ConfigMap and mounted at
+  # /etc/yafu/rbac/policy.yaml. Leave empty to skip the mount.
+  policy: ""
+  # ConfigMap key: defaults to "policy.yaml". Override only if you use
+  # an existingConfigMap with a different key.
+  configMapKey: policy.yaml
+  # Reference an existing ConfigMap instead of generating one.
+  existingConfigMap: ""
 
 logLevel: info
 

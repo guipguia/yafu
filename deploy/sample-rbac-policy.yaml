@@ -1,0 +1,48 @@
+# Sample yafu authorization policy.
+#
+# Use this as a starting point: copy into Helm values under
+# `authzPolicy.policy` (as a string), or apply it as a ConfigMap and
+# reference it via `authzPolicy.existingConfigMap`.
+#
+# Evaluation order: rules are checked top-to-bottom; the first rule
+# that matches the request decides the outcome. If no rule matches,
+# DefaultAction applies.
+#
+# Subject syntax:
+#   user:<email-or-subject>   match by Identity.Email or Identity.Subject
+#   group:<name>              case-insensitive group membership
+#   *                         match everyone
+#
+# Verbs are exact strings or "*". Today only "get" is exercised by the
+# read endpoints; reconcile/suspend/resume land in v0.2 alongside the
+# mutation endpoints.
+#
+# Cluster names are exact or filepath-globs ("prod-*", "edge-tokyo", "*").
+
+defaultAction: deny
+
+rules:
+  # Platform admins: everything, everywhere.
+  - subjects: ["group:platform-admins"]
+    verbs: ["*"]
+    clusters: ["*"]
+    action: allow
+
+  # SRE on-call: read + reconcile any production cluster.
+  - subjects: ["group:sre-oncall"]
+    verbs: ["get", "reconcile"]
+    clusters: ["prod-*"]
+    action: allow
+
+  # Dev team: read-only access to dev + staging.
+  - subjects: ["group:dev-team"]
+    verbs: ["get"]
+    clusters: ["dev-*", "staging"]
+    action: allow
+
+  # Specific user override: alice can suspend any cluster (e.g. for
+  # incident response), beyond what her groups grant.
+  - subjects: ["user:alice@acme.example"]
+    verbs: ["suspend", "resume"]
+    clusters: ["*"]
+    action: allow

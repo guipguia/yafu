@@ -1,3 +1,8 @@
+{{- $rbacKey := .Values.authzPolicy.configMapKey | default "policy.yaml" -}}
+{{- $rbacCM := .Values.authzPolicy.existingConfigMap -}}
+{{- if and (not $rbacCM) .Values.authzPolicy.policy -}}
+{{- $rbacCM = printf "%s-rbac" (include "yafu.fullname" .) -}}
+{{- end -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -37,8 +42,12 @@ spec:
             - --addr=:{{ .Values.service.targetPort }}
             - --log-level={{ .Values.logLevel }}
             - --cluster-mode={{ .Values.clusterMode | default "crd" }}
+            - --auth-mode={{ .Values.auth.mode | default "anonymous" }}
             - --metrics-addr=0
             - --probe-addr=0
+            {{- if $rbacCM }}
+            - --rbac-file=/etc/yafu/rbac/{{ $rbacKey }}
+            {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.service.targetPort }}
@@ -63,6 +72,18 @@ spec:
             {{- with .Values.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
+          {{- if $rbacCM }}
+          volumeMounts:
+            - name: rbac
+              mountPath: /etc/yafu/rbac
+              readOnly: true
+          {{- end }}
+      {{- if $rbacCM }}
+      volumes:
+        - name: rbac
+          configMap:
+            name: {{ $rbacCM }}
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

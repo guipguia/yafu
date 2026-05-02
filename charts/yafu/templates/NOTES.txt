@@ -13,3 +13,25 @@ To access the dashboard:
 
   Then open http://localhost:8080
 {{- end }}
+
+{{- if eq (.Values.auth.mode | default "anonymous") "anonymous" }}
+
+⚠ AUTH MODE IS 'ANONYMOUS' — every request is treated as the same
+  unauthenticated user. Do not expose this deployment publicly.
+
+  For a real environment, set:
+
+    auth:
+      mode: header
+
+  and put oauth2-proxy / Pomerium / your ingress's auth-snippet in
+  front of yafu so it injects X-Forwarded-User / X-Forwarded-Email /
+  X-Forwarded-Groups before requests reach the API.
+{{- end }}
+
+{{- if and (ne (.Values.auth.mode | default "anonymous") "anonymous") (not .Values.authzPolicy.policy) (not .Values.authzPolicy.existingConfigMap) }}
+
+ℹ No authorization policy is configured. Every authenticated user has
+  full access to every cluster. Set `authzPolicy.policy` (inline) or
+  `authzPolicy.existingConfigMap` (reference) to restrict.
+{{- end }}
