@@ -32,4 +32,7 @@ func RegisterAPI(mux *http.ServeMux, deps Deps) {
 
 	ah := &applicationsHandler{registry: deps.Registry, policy: deps.Policy}
 	mux.HandleFunc("GET /api/v1/applications", ah.list)
+
+	sh := &sourcesHandler{registry: deps.Registry, policy: deps.Policy}
+	mux.HandleFunc("GET /api/v1/sources", sh.list)
 }

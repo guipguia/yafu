@@ -57,3 +57,26 @@ type ClusterError struct {
 	Cluster string `json:"cluster"`
 	Error   string `json:"error"`
 }
+
+// Source is a Flux source resource (Git/Helm/OCI/Bucket).
+type Source struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Kind      string `json:"kind"` // GitRepository | HelmRepository | OCIRepository | Bucket
+	Ns        string `json:"ns"`
+	Cluster   string `json:"cluster"`
+	ClusterID string `json:"clusterId"`
+	URL       string `json:"url"`
+	Ref       string `json:"ref,omitempty"`
+	Revision  string `json:"revision,omitempty"`
+	Status    string `json:"status"` // healthy | degraded | failing | progressing
+	Interval  string `json:"interval,omitempty"`
+	Age       string `json:"age"`
+	Message   string `json:"message,omitempty"`
+}
+
+// SourcesResponse is the top-level shape of GET /api/v1/sources.
+type SourcesResponse struct {
+	Sources []Source       `json:"sources"`
+	Errors  []ClusterError `json:"errors,omitempty"`
+}

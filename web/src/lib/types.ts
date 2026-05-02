@@ -57,6 +57,29 @@ export interface ClusterError {
   error: string
 }
 
+export interface Source {
+  id: string
+  name: string
+  /** GitRepository | HelmRepository | OCIRepository | Bucket */
+  kind: string
+  ns: string
+  cluster: string
+  clusterId: string
+  url: string
+  ref?: string
+  revision?: string
+  /** healthy | degraded | failing | progressing */
+  status: string
+  interval?: string
+  age: string
+  message?: string
+}
+
+export interface SourcesResponse {
+  sources: Source[]
+  errors?: ClusterError[]
+}
+
 // ---------- Drawer placeholder types (mock until v0.2 wires real data) ----------
 
 export type EventKind = 'ok' | 'warn' | 'err'
