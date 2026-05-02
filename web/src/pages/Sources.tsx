@@ -1,12 +1,22 @@
-import { useSources } from '@/lib/queries'
+import {
+  useSources,
+  useReconcileSource,
+  useResumeSource,
+  useSuspendSource,
+} from '@/lib/queries'
 import { KindBadge } from '@/components/KindBadge'
 import { EmptyState, ErrorState, LoadingState } from '@/components/States'
 import { Ic } from '@/components/Icons'
 
 export function SourcesPage() {
   const { data, isLoading, error } = useSources()
+  const reconcile = useReconcileSource()
+  const suspend = useSuspendSource()
+  const resume = useResumeSource()
+
   const sources = data?.sources ?? []
   const fanoutErrors = data?.errors ?? []
+  const lastError = reconcile.error || suspend.error || resume.error
 
   const failing = sources.filter((s) => s.status === 'failing').length
   const byKind = sources.reduce<Record<string, number>>((acc, s) => {
@@ -14,6 +24,10 @@ export function SourcesPage() {
     return acc
   }, {})
   const healthy = sources.filter((s) => s.status === 'healthy').length
+
+  const reconcileAll = () => {
+    for (const s of sources) reconcile.mutate(s)
+  }
 
   return (
     <>
@@ -30,9 +44,30 @@ export function SourcesPage() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
-          <button className="btn" disabled title="v0.2"><Ic.refresh /> Reconcile all</button>
+          <button
+            className="btn"
+            onClick={reconcileAll}
+            disabled={sources.length === 0 || reconcile.isPending}
+            title="Trigger reconcile on every source"
+          >
+            <Ic.refresh /> {reconcile.isPending ? 'Reconciling…' : 'Reconcile all'}
+          </button>
         </div>
       </div>
+
+      {lastError && (
+        <div
+          className="panel"
+          style={{ padding: '8px 14px', marginBottom: 12, borderLeft: '2px solid var(--err)' }}
+        >
+          <span className="mono" style={{ fontSize: 11, color: 'var(--err)' }}>
+            action failed:
+          </span>{' '}
+          <span className="mono" style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>
+            {lastError.message}
+          </span>
+        </div>
+      )}
 
       {sources.length > 0 && (
         <div className="stats" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
@@ -141,63 +176,99 @@ export function SourcesPage() {
               </tr>
             </thead>
             <tbody>
-              {sources.map((s) => (
-                <tr key={s.id}>
-                  <td>
-                    <span
-                      className="row-status"
-                      style={{
-                        background:
-                          s.status === 'failing' ? 'var(--err)' :
-                          s.status === 'degraded' ? 'var(--warn)' :
-                          s.status === 'progressing' ? 'var(--info)' :
-                          'var(--ok)',
-                      }}
-                    />
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {s.kind === 'GitRepository' ? <Ic.git /> :
-                        s.kind === 'HelmRepository' ? <Ic.helm /> :
-                        <Ic.oci />}
-                      <span className="name">{s.name}</span>
-                    </div>
-                    {s.status === 'failing' && s.message && (
-                      <div className="mono" style={{ fontSize: 10.5, color: 'var(--err)', marginTop: 2 }}>
-                        {s.message}
+              {sources.map((s) => {
+                const busy =
+                  (reconcile.isPending && reconcile.variables?.id === s.id) ||
+                  (suspend.isPending && suspend.variables?.id === s.id) ||
+                  (resume.isPending && resume.variables?.id === s.id)
+                return (
+                  <tr key={s.id}>
+                    <td>
+                      <span
+                        className="row-status"
+                        style={{
+                          background:
+                            s.status === 'failing' ? 'var(--err)' :
+                            s.status === 'degraded' ? 'var(--warn)' :
+                            s.status === 'progressing' ? 'var(--info)' :
+                            s.status === 'paused' ? 'var(--paused)' :
+                            'var(--ok)',
+                        }}
+                      />
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {s.kind === 'GitRepository' ? <Ic.git /> :
+                          s.kind === 'HelmRepository' ? <Ic.helm /> :
+                          <Ic.oci />}
+                        <span className="name">{s.name}</span>
+                        {s.suspended && (
+                          <span className="chip paused" style={{ marginLeft: 6 }}>
+                            <Ic.pause /> Suspended
+                          </span>
+                        )}
                       </div>
-                    )}
-                  </td>
-                  <td><KindBadge kind={s.kind} /></td>
-                  <td className="mono" style={{ fontSize: 11.5 }}>{s.cluster}</td>
-                  <td
-                    className="mono"
-                    style={{
-                      fontSize: 11,
-                      color: 'var(--ink-3)',
-                      maxWidth: 280,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    {s.url}
-                  </td>
-                  <td className="mono" style={{ fontSize: 11.5 }}>{s.ref || '—'}</td>
-                  <td className="mono" style={{ fontSize: 11, color: 'var(--accent-ink)' }}>{s.revision || '—'}</td>
-                  <td className="mono" style={{ fontSize: 11.5 }}>{s.interval || '—'}</td>
-                  <td className="ago">{s.age}</td>
-                  <td>
-                    <button
-                      className="icon-btn"
-                      disabled
-                      title="v0.2"
-                      aria-label={`Actions for ${s.name} (coming in v0.2)`}
+                      {s.status === 'failing' && s.message && (
+                        <div className="mono" style={{ fontSize: 10.5, color: 'var(--err)', marginTop: 2 }}>
+                          {s.message}
+                        </div>
+                      )}
+                    </td>
+                    <td><KindBadge kind={s.kind} /></td>
+                    <td className="mono" style={{ fontSize: 11.5 }}>{s.cluster}</td>
+                    <td
+                      className="mono"
+                      style={{
+                        fontSize: 11,
+                        color: 'var(--ink-3)',
+                        maxWidth: 280,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
                     >
-                      <Ic.more />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                      {s.url}
+                    </td>
+                    <td className="mono" style={{ fontSize: 11.5 }}>{s.ref || '—'}</td>
+                    <td className="mono" style={{ fontSize: 11, color: 'var(--accent-ink)' }}>{s.revision || '—'}</td>
+                    <td className="mono" style={{ fontSize: 11.5 }}>{s.interval || '—'}</td>
+                    <td className="ago">{s.age}</td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                        <button
+                          className="icon-btn"
+                          aria-label={`Reconcile ${s.name}`}
+                          title="Reconcile"
+                          disabled={busy}
+                          onClick={() => reconcile.mutate(s)}
+                        >
+                          <Ic.refresh />
+                        </button>
+                        {s.suspended ? (
+                          <button
+                            className="icon-btn"
+                            aria-label={`Resume ${s.name}`}
+                            title="Resume"
+                            disabled={busy}
+                            onClick={() => resume.mutate(s)}
+                          >
+                            <Ic.play />
+                          </button>
+                        ) : (
+                          <button
+                            className="icon-btn"
+                            aria-label={`Suspend ${s.name}`}
+                            title="Suspend"
+                            disabled={busy}
+                            onClick={() => suspend.mutate(s)}
+                          >
+                            <Ic.pause />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

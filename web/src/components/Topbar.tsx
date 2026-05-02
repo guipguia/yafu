@@ -53,24 +53,6 @@ export function Topbar({ crumbs, theme, onToggleTheme }: Props) {
         <button className="icon-btn" onClick={onToggleTheme} aria-label={themeAction} title={themeAction}>
           {theme === 'dark' ? <Ic.sun /> : <Ic.moon />}
         </button>
-        <button className="icon-btn" aria-label="Notifications" title="Notifications" style={{ position: 'relative' }}>
-          <Ic.bell />
-          <span
-            aria-hidden="true"
-            style={{
-              position: 'absolute',
-              top: 6,
-              right: 6,
-              width: 6,
-              height: 6,
-              borderRadius: '50%',
-              background: 'var(--err)',
-            }}
-          />
-        </button>
-        <button className="btn primary">
-          <Ic.refresh aria-hidden="true" /> Reconcile all
-        </button>
       </div>
     </header>
   )

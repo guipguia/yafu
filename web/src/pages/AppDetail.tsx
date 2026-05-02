@@ -1358,9 +1358,6 @@ function HistoryTab({ app }: { app: Application }) {
           <div className="panel-title">
             <span className="lab">History</span>Recent revisions
           </div>
-          <div className="panel-actions">
-            <button className="btn" disabled title="v0.3"><Ic.refresh /> Rollback to selected</button>
-          </div>
         </div>
         {isLoading && entries.length === 0 && <LoadingState label="Loading history…" />}
         {error && <ErrorState message={error.message} />}

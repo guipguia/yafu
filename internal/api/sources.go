@@ -142,6 +142,10 @@ func gitRepoToSource(e *cluster.Entry, g *sourcev1.GitRepository) types.Source {
 	if g.Status.Artifact != nil {
 		rev = shortRevision(g.Status.Artifact.Revision)
 	}
+	status := sourceStatus(g.Status.Conditions)
+	if g.Spec.Suspend {
+		status = "paused"
+	}
 	return types.Source{
 		ID:        sourceID(e.Name, g.Namespace, "GitRepository", g.Name),
 		Name:      g.Name,
@@ -152,10 +156,11 @@ func gitRepoToSource(e *cluster.Entry, g *sourcev1.GitRepository) types.Source {
 		URL:       g.Spec.URL,
 		Ref:       gitRepoRef(g.Spec.Reference),
 		Revision:  rev,
-		Status:    sourceStatus(g.Status.Conditions),
+		Status:    status,
 		Interval:  g.Spec.Interval.Duration.String(),
 		Age:       humanizeAge(lastReconcileTime(g.Status.Conditions)),
 		Message:   sourceMessage(g.Status.Conditions),
+		Suspended: g.Spec.Suspend,
 	}
 }
 
@@ -163,6 +168,10 @@ func helmRepoToSource(e *cluster.Entry, h *sourcev1.HelmRepository) types.Source
 	rev := ""
 	if h.Status.Artifact != nil {
 		rev = shortRevision(h.Status.Artifact.Revision)
+	}
+	status := sourceStatus(h.Status.Conditions)
+	if h.Spec.Suspend {
+		status = "paused"
 	}
 	return types.Source{
 		ID:        sourceID(e.Name, h.Namespace, "HelmRepository", h.Name),
@@ -174,10 +183,11 @@ func helmRepoToSource(e *cluster.Entry, h *sourcev1.HelmRepository) types.Source
 		URL:       h.Spec.URL,
 		Ref:       "—",
 		Revision:  rev,
-		Status:    sourceStatus(h.Status.Conditions),
+		Status:    status,
 		Interval:  h.Spec.Interval.Duration.String(),
 		Age:       humanizeAge(lastReconcileTime(h.Status.Conditions)),
 		Message:   sourceMessage(h.Status.Conditions),
+		Suspended: h.Spec.Suspend,
 	}
 }
 
@@ -185,6 +195,10 @@ func ociRepoToSource(e *cluster.Entry, o *sourcev1.OCIRepository) types.Source {
 	rev := ""
 	if o.Status.Artifact != nil {
 		rev = shortRevision(o.Status.Artifact.Revision)
+	}
+	status := sourceStatus(o.Status.Conditions)
+	if o.Spec.Suspend {
+		status = "paused"
 	}
 	return types.Source{
 		ID:        sourceID(e.Name, o.Namespace, "OCIRepository", o.Name),
@@ -196,10 +210,11 @@ func ociRepoToSource(e *cluster.Entry, o *sourcev1.OCIRepository) types.Source {
 		URL:       o.Spec.URL,
 		Ref:       ociRepoRef(o.Spec.Reference),
 		Revision:  rev,
-		Status:    sourceStatus(o.Status.Conditions),
+		Status:    status,
 		Interval:  o.Spec.Interval.Duration.String(),
 		Age:       humanizeAge(lastReconcileTime(o.Status.Conditions)),
 		Message:   sourceMessage(o.Status.Conditions),
+		Suspended: o.Spec.Suspend,
 	}
 }
 
@@ -207,6 +222,10 @@ func bucketToSource(e *cluster.Entry, b *sourcev1.Bucket) types.Source {
 	rev := ""
 	if b.Status.Artifact != nil {
 		rev = shortRevision(b.Status.Artifact.Revision)
+	}
+	status := sourceStatus(b.Status.Conditions)
+	if b.Spec.Suspend {
+		status = "paused"
 	}
 	return types.Source{
 		ID:        sourceID(e.Name, b.Namespace, "Bucket", b.Name),
@@ -218,10 +237,11 @@ func bucketToSource(e *cluster.Entry, b *sourcev1.Bucket) types.Source {
 		URL:       fmt.Sprintf("%s/%s", b.Spec.Endpoint, b.Spec.BucketName),
 		Ref:       "—",
 		Revision:  rev,
-		Status:    sourceStatus(b.Status.Conditions),
+		Status:    status,
 		Interval:  b.Spec.Interval.Duration.String(),
 		Age:       humanizeAge(lastReconcileTime(b.Status.Conditions)),
 		Message:   sourceMessage(b.Status.Conditions),
+		Suspended: b.Spec.Suspend,
 	}
 }
 

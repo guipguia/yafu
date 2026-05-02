@@ -1,7 +1,6 @@
 import { useAlerts } from '@/lib/queries'
 import { StatusChip } from '@/components/StatusChip'
 import { EmptyState, ErrorState, LoadingState } from '@/components/States'
-import { Ic } from '@/components/Icons'
 
 export function AlertsPage() {
   const { data, isLoading, error } = useAlerts()
@@ -65,7 +64,6 @@ export function AlertsPage() {
                 <th>Target</th>
                 <th>Status</th>
                 <th>Age</th>
-                <th />
               </tr>
             </thead>
             <tbody>
@@ -101,7 +99,6 @@ export function AlertsPage() {
                   <td className="mono" style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>{a.target || '—'}</td>
                   <td><StatusChip status={a.status === 'paused' ? 'paused' : 'healthy'} /></td>
                   <td className="ago">{a.age}</td>
-                  <td><button className="icon-btn" disabled title="v0.2"><Ic.more /></button></td>
                 </tr>
               ))}
             </tbody>

@@ -151,7 +151,6 @@ export function AppsPage({ onOpen }: Props) {
                 <th>Sync</th>
                 <th>Source · Revision</th>
                 <th>Last Reconcile</th>
-                <th style={{ width: 36 }} />
               </tr>
             </thead>
             <tbody>
@@ -208,15 +207,6 @@ export function AppsPage({ onOpen }: Props) {
                     </span>
                   </td>
                   <td className="ago">{a.age}</td>
-                  <td>
-                    <button
-                      className="icon-btn"
-                      aria-label={`Actions for ${a.name}`}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Ic.more />
-                    </button>
-                  </td>
                 </tr>
               ))}
             </tbody>

@@ -1,14 +1,35 @@
+import { useState } from 'react'
 import { useEvents } from '@/lib/queries'
 import { EmptyState, ErrorState, LoadingState } from '@/components/States'
 import { Ic } from '@/components/Icons'
 
+type Severity = 'all' | 'ok' | 'warn' | 'err'
+
 export function ActivityPage() {
   const { data, isLoading, error } = useEvents()
-  const events = data?.events ?? []
+  const allEvents = data?.events ?? []
   const fanoutErrors = data?.errors ?? []
 
-  // Top changers — by event source component.
-  const sourceCounts = events.reduce<Record<string, number>>((acc, e) => {
+  const [severity, setSeverity] = useState<Severity>('all')
+  const [search, setSearch] = useState('')
+
+  // Apply severity + free-text filter on the client. Events come pre-tagged
+  // with a kind from the backend (ok/warn/err); search hits reason/message/object.
+  const events = allEvents.filter((e) => {
+    if (severity !== 'all' && e.kind !== severity) return false
+    if (!search) return true
+    const q = search.toLowerCase()
+    return (
+      e.reason.toLowerCase().includes(q) ||
+      e.message.toLowerCase().includes(q) ||
+      e.object.toLowerCase().includes(q) ||
+      e.ns.toLowerCase().includes(q)
+    )
+  })
+
+  // Top changers — by event source component (pre-filter, so the chart
+  // doesn't move around as you filter).
+  const sourceCounts = allEvents.reduce<Record<string, number>>((acc, e) => {
     const k = e.source || 'unknown'
     acc[k] = (acc[k] ?? 0) + 1
     return acc
@@ -28,8 +49,29 @@ export function ActivityPage() {
           </h1>
           <div className="page-sub">k8s Events emitted by Flux controllers across every reachable cluster.</div>
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button className="btn" disabled title="v0.2"><Ic.filter /> Filter</button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div className="diff-mode-seg" role="group" aria-label="Filter by severity">
+            {(['all', 'ok', 'warn', 'err'] as Severity[]).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setSeverity(s)}
+                aria-pressed={severity === s}
+              >
+                <span className="pip" />
+                {s === 'all' ? 'All' : s === 'ok' ? 'OK' : s === 'warn' ? 'Warnings' : 'Errors'}
+              </button>
+            ))}
+          </div>
+          <div className="search" role="search" style={{ minWidth: 220 }}>
+            <span aria-hidden="true"><Ic.search /></span>
+            <input
+              aria-label="Search events"
+              placeholder="Search reason, message, object…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
         </div>
       </div>
 

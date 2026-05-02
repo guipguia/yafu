@@ -69,10 +69,11 @@ type Source struct {
 	URL       string `json:"url"`
 	Ref       string `json:"ref,omitempty"`
 	Revision  string `json:"revision,omitempty"`
-	Status    string `json:"status"` // healthy | degraded | failing | progressing
+	Status    string `json:"status"` // healthy | degraded | failing | progressing | paused
 	Interval  string `json:"interval,omitempty"`
 	Age       string `json:"age"`
 	Message   string `json:"message,omitempty"`
+	Suspended bool   `json:"suspended"`
 }
 
 // SourcesResponse is the top-level shape of GET /api/v1/sources.

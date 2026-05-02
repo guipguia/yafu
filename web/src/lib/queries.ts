@@ -13,6 +13,7 @@ import type {
   LogsResponse,
   ManifestResponse,
   RenderResponse,
+  Source,
   SourcesResponse,
   TreeResponse,
   WhoamiResponse,
@@ -243,3 +244,27 @@ function useImageMutation(verb: MutationVerb) {
 export const useReconcileImage = () => useImageMutation('reconcile')
 export const useSuspendImage = () => useImageMutation('suspend')
 export const useResumeImage = () => useImageMutation('resume')
+
+function sourceActionURL(s: Source, verb: MutationVerb) {
+  const parts = [s.clusterId, s.ns, s.kind, s.name].map(encodeURIComponent)
+  return `/api/v1/sources/${parts.join('/')}/${verb}`
+}
+
+function useSourceMutation(verb: MutationVerb) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (s: Source) =>
+      fetchJSON<{ status: string; verb: string }>(sourceActionURL(s, verb), { method: 'POST' }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['sources'] })
+      // Reconciling a source rebuilds its artifact, which cascades into
+      // any Kustomization / HelmRelease that depends on it. Force the
+      // applications list to refetch so users see the propagation.
+      void qc.invalidateQueries({ queryKey: ['applications'] })
+    },
+  })
+}
+
+export const useReconcileSource = () => useSourceMutation('reconcile')
+export const useSuspendSource = () => useSourceMutation('suspend')
+export const useResumeSource = () => useSourceMutation('resume')

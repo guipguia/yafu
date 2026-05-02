@@ -76,8 +76,9 @@ export interface Source {
   url: string
   ref?: string
   revision?: string
-  /** healthy | degraded | failing | progressing */
+  /** healthy | degraded | failing | progressing | paused */
   status: string
+  suspended: boolean
   interval?: string
   age: string
   message?: string
