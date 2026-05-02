@@ -23,6 +23,11 @@ type Config struct {
 	// Auth wraps the /api/* sub-mux. Required — without an explicit
 	// middleware the server panics rather than serve the API open.
 	Auth auth.Middleware
+
+	// Policy is consulted by handlers to filter results per identity.
+	// The zero value denies everything; main.go uses
+	// auth.DefaultAllowAllPolicy when --rbac-file is not provided.
+	Policy auth.Policy
 }
 
 type Server struct {
@@ -47,7 +52,7 @@ func New(cfg Config) *Server {
 
 	// Authenticated API routes mounted on a sub-mux behind cfg.Auth.
 	apiMux := http.NewServeMux()
-	api.RegisterAPI(apiMux, api.Deps{Registry: cfg.Registry})
+	api.RegisterAPI(apiMux, api.Deps{Registry: cfg.Registry, Policy: cfg.Policy})
 	mux.Handle("/api/", cfg.Auth(apiMux))
 
 	handler := chain(mux,

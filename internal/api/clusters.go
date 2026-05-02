@@ -5,18 +5,25 @@ import (
 	"net/http"
 
 	"github.com/guipguia/yafu/internal/api/types"
+	"github.com/guipguia/yafu/internal/auth"
 	"github.com/guipguia/yafu/internal/cluster"
 )
 
 type clustersHandler struct {
 	registry cluster.Registry
+	policy   auth.Policy
 }
 
-func (h *clustersHandler) list(w http.ResponseWriter, _ *http.Request) {
+func (h *clustersHandler) list(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	id, _ := auth.IdentityFrom(r.Context())
+
 	resp := types.ClustersResponse{Clusters: []types.Cluster{}}
 	if h.registry != nil {
 		for _, e := range h.registry.List() {
+			if !h.policy.Authorize(id, "get", e.Name) {
+				continue
+			}
 			resp.Clusters = append(resp.Clusters, toClusterDTO(e))
 		}
 	}

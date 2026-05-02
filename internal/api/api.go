@@ -3,12 +3,14 @@ package api
 import (
 	"net/http"
 
+	"github.com/guipguia/yafu/internal/auth"
 	"github.com/guipguia/yafu/internal/cluster"
 )
 
 // Deps are the runtime dependencies injected into the HTTP API.
 type Deps struct {
 	Registry cluster.Registry
+	Policy   auth.Policy
 }
 
 // RegisterPublic mounts unauthenticated routes — kubelet probes,
@@ -25,9 +27,9 @@ func RegisterAPI(mux *http.ServeMux, deps Deps) {
 	mux.HandleFunc("GET /api/v1/whoami", handleWhoami)
 	mux.HandleFunc("GET /api/v1/stream", handleStream)
 
-	ch := &clustersHandler{registry: deps.Registry}
+	ch := &clustersHandler{registry: deps.Registry, policy: deps.Policy}
 	mux.HandleFunc("GET /api/v1/clusters", ch.list)
 
-	ah := &applicationsHandler{registry: deps.Registry}
+	ah := &applicationsHandler{registry: deps.Registry, policy: deps.Policy}
 	mux.HandleFunc("GET /api/v1/applications", ah.list)
 }

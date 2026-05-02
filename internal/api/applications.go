@@ -15,11 +15,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/guipguia/yafu/internal/api/types"
+	"github.com/guipguia/yafu/internal/auth"
 	"github.com/guipguia/yafu/internal/cluster"
 )
 
 type applicationsHandler struct {
 	registry cluster.Registry
+	policy   auth.Policy
 }
 
 func (h *applicationsHandler) list(w http.ResponseWriter, r *http.Request) {
@@ -31,16 +33,19 @@ func (h *applicationsHandler) list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	id, _ := auth.IdentityFrom(r.Context())
+
 	clusterFilter := r.URL.Query().Get("cluster")
-	entries := h.registry.List()
-	if clusterFilter != "" {
-		filtered := entries[:0]
-		for _, e := range entries {
-			if e.Name == clusterFilter {
-				filtered = append(filtered, e)
-			}
+	allEntries := h.registry.List()
+	entries := allEntries[:0]
+	for _, e := range allEntries {
+		if clusterFilter != "" && e.Name != clusterFilter {
+			continue
 		}
-		entries = filtered
+		if !h.policy.Authorize(id, "get", e.Name) {
+			continue
+		}
+		entries = append(entries, e)
 	}
 
 	type result struct {

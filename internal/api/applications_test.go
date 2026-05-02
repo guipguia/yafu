@@ -16,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/guipguia/yafu/internal/api/types"
+	"github.com/guipguia/yafu/internal/auth"
 	"github.com/guipguia/yafu/internal/cluster"
 )
 
@@ -200,6 +201,44 @@ func TestApplicationsHandler_FilterByCluster(t *testing.T) {
 	}
 	if resp.Applications[0].ClusterID != "bravo" {
 		t.Errorf("clusterId = %q, want bravo", resp.Applications[0].ClusterID)
+	}
+}
+
+func TestApplicationsHandler_FiltersByPolicy(t *testing.T) {
+	now := metav1.Now()
+
+	clusterA := newTestEntry("alpha", "Alpha Cluster",
+		mkKustomization("checkout-api", "shop", false, true, "main@7f3c1d9", now),
+	)
+	clusterB := newTestEntry("bravo", "Bravo Cluster",
+		mkHelmRelease("monitoring", "observability", false, true, "58.3.0", now),
+	)
+
+	policy := auth.Policy{
+		DefaultAction: auth.ActionDeny,
+		Rules: []auth.Rule{
+			{Subjects: []string{"group:alpha-only"}, Verbs: []string{"get"}, Clusters: []string{"alpha"}, Action: auth.ActionAllow},
+		},
+	}
+	id := auth.Identity{Subject: "u1", Groups: []string{"alpha-only"}}
+
+	reg := &stubRegistry{entries: []*cluster.Entry{clusterA, clusterB}}
+	h := &applicationsHandler{registry: reg, policy: policy}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/applications", nil)
+	req = req.WithContext(auth.WithIdentity(req.Context(), id))
+	w := httptest.NewRecorder()
+	h.list(w, req)
+
+	var resp types.ApplicationsResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(resp.Applications) != 1 {
+		t.Fatalf("got %d apps, want 1 (alpha only)", len(resp.Applications))
+	}
+	if resp.Applications[0].ClusterID != "alpha" {
+		t.Errorf("clusterId = %q, want alpha", resp.Applications[0].ClusterID)
 	}
 }
 

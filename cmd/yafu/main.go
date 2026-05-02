@@ -43,6 +43,7 @@ func main() {
 		probeAddr    = flag.String("probe-addr", ":8082", "controller-runtime healthz listen address (CRD mode only; \"0\" disables)")
 
 		authMode = flag.String("auth-mode", "anonymous", "request authentication: 'anonymous' (dev), 'header' (trust X-Forwarded-* from a proxy), or 'oidc' (not yet implemented)")
+		rbacFile = flag.String("rbac-file", "", "path to YAML RBAC policy. When unset, every authenticated user gets full access (a WARN is logged at startup).")
 	)
 	// --kubeconfig is registered by sigs.k8s.io/controller-runtime/pkg/client/config
 	// via package init(); we read its value after parsing.
@@ -98,11 +99,25 @@ func main() {
 		logger.Warn("auth mode 'anonymous' allows unauthenticated access — do not use in production")
 	}
 
+	policy := auth.DefaultAllowAllPolicy
+	if *rbacFile != "" {
+		p, err := auth.LoadPolicyFile(*rbacFile)
+		if err != nil {
+			logger.Error("rbac policy", "err", err)
+			os.Exit(1)
+		}
+		policy = p
+		logger.Info("rbac policy", "file", *rbacFile, "rules", len(policy.Rules), "default", string(policy.DefaultAction))
+	} else if parsedAuthMode != auth.ModeAnonymous {
+		logger.Warn("no --rbac-file set; every authenticated user has full access")
+	}
+
 	srv := server.New(server.Config{
 		Addr:     *addr,
 		Logger:   logger,
 		Registry: registry,
 		Auth:     authMW,
+		Policy:   policy,
 	})
 
 	if err := srv.Run(ctx); err != nil && !errors.Is(err, http.ErrServerClosed) {

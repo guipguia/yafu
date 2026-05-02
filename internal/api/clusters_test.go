@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/guipguia/yafu/internal/api/types"
+	"github.com/guipguia/yafu/internal/auth"
 	"github.com/guipguia/yafu/internal/cluster"
 )
 
@@ -47,6 +48,40 @@ func TestClustersHandler_NilRegistry(t *testing.T) {
 	}
 	if len(resp.Clusters) != 0 {
 		t.Errorf("expected empty clusters, got %d", len(resp.Clusters))
+	}
+}
+
+func TestClustersHandler_FiltersByPolicy(t *testing.T) {
+	a := &cluster.Entry{Name: "alpha", DisplayName: "Alpha"}
+	a.SetStatus(cluster.Status{Reachable: true, FluxInstalled: true})
+	b := &cluster.Entry{Name: "bravo", DisplayName: "Bravo"}
+	b.SetStatus(cluster.Status{Reachable: true, FluxInstalled: true})
+
+	policy := auth.Policy{
+		DefaultAction: auth.ActionDeny,
+		Rules: []auth.Rule{
+			{Subjects: []string{"group:dev-team"}, Verbs: []string{"get"}, Clusters: []string{"alpha"}, Action: auth.ActionAllow},
+		},
+	}
+	id := auth.Identity{Groups: []string{"dev-team"}}
+
+	reg := &stubRegistry{entries: []*cluster.Entry{a, b}}
+	h := &clustersHandler{registry: reg, policy: policy}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/clusters", nil)
+	req = req.WithContext(auth.WithIdentity(req.Context(), id))
+	w := httptest.NewRecorder()
+	h.list(w, req)
+
+	var resp types.ClustersResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(resp.Clusters) != 1 {
+		t.Fatalf("got %d clusters, want 1 (alpha only)", len(resp.Clusters))
+	}
+	if resp.Clusters[0].ID != "alpha" {
+		t.Errorf("cluster id = %q, want alpha", resp.Clusters[0].ID)
 	}
 }
 
