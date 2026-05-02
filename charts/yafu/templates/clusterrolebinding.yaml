@@ -13,4 +13,35 @@ subjects:
   - kind: ServiceAccount
     name: {{ include "yafu.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
+---
+# yafu's Resource Tree walks arbitrary inventory entries — anything Flux's
+# Kustomization or HelmRelease might apply (Pods, Deployments, Services,
+# Ingresses, HPAs, PDBs, plus CRDs from cert-manager / Prometheus / etc).
+# Listing every kind explicitly in the chart would drift from reality, so
+# we lean on the built-in `view` ClusterRole, which Kubernetes maintains
+# as the canonical "read most things" role and which most operator
+# install-bundles aggregate into.
+#
+# `view` excludes Secrets — that's already handled by the dedicated rule
+# in clusterrole.yaml. It also excludes Roles/RoleBindings, which yafu
+# does not need to read.
+#
+# Operators who want stricter scoping can flip rbac.viewBinding=false in
+# values.yaml and substitute their own narrower binding.
+{{- if .Values.rbac.viewBinding | default true }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "yafu.fullname" . }}-view
+  labels:
+    {{- include "yafu.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "yafu.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}
 {{- end }}
