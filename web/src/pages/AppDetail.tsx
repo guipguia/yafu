@@ -1,6 +1,12 @@
 import { useState, type ReactNode } from 'react'
 import type { Application } from '@/lib/types'
-import { useAppEvents, useReconcileApp, useResumeApp, useSuspendApp } from '@/lib/queries'
+import {
+  useAppEvents,
+  useAppHistory,
+  useReconcileApp,
+  useResumeApp,
+  useSuspendApp,
+} from '@/lib/queries'
 import { StatusChip } from '@/components/StatusChip'
 import { ComingSoon, EmptyState, ErrorState, LoadingState } from '@/components/States'
 import { Ic } from '@/components/Icons'
@@ -129,9 +135,7 @@ export function AppDetailDrawer({ app, onClose }: Props) {
           {tab === 'logs' && (
             <div style={{ padding: 18 }}><ComingSoon feature="Live log tail" /></div>
           )}
-          {tab === 'history' && (
-            <div style={{ padding: 18 }}><ComingSoon feature="Revision history & rollback" /></div>
-          )}
+          {tab === 'history' && <HistoryTab app={app} />}
           {tab === 'yaml' && (
             <div style={{ padding: 18 }}><ComingSoon feature="Rendered & source manifests" /></div>
           )}
@@ -191,6 +195,92 @@ function OverviewTab({ app }: { app: Application }) {
             )}
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function HistoryTab({ app }: { app: Application }) {
+  const { data, isLoading, error } = useAppHistory(app)
+  const entries = data?.entries ?? []
+
+  return (
+    <div style={{ padding: 18 }}>
+      <div className="panel">
+        <div className="panel-head">
+          <div className="panel-title">
+            <span className="lab">History</span>Recent revisions
+          </div>
+          <div className="panel-actions">
+            <button className="btn" disabled title="v0.3"><Ic.refresh /> Rollback to selected</button>
+          </div>
+        </div>
+        {isLoading && entries.length === 0 && <LoadingState label="Loading history…" />}
+        {error && <ErrorState message={error.message} />}
+        {!isLoading && !error && entries.length === 0 && (
+          <EmptyState
+            title="No history"
+            hint={app.kind === 'HelmRelease'
+              ? 'No HelmRelease snapshots recorded yet.'
+              : 'Kustomization only retains its current revision.'}
+          />
+        )}
+        {entries.length > 0 && (
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th />
+                <th>Revision</th>
+                <th>Action</th>
+                <th>App version</th>
+                <th>Status</th>
+                <th>When</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((e, i) => (
+                <tr key={i}>
+                  <td>
+                    <span
+                      className="row-status"
+                      style={{
+                        background:
+                          e.status === 'failed' ? 'var(--err)' :
+                          e.status === 'superseded' ? 'var(--paused)' :
+                          'var(--ok)',
+                      }}
+                    />
+                  </td>
+                  <td>
+                    <span className="mono" style={{ color: 'var(--accent-ink)' }}>{e.revision}</span>
+                    {e.current && (
+                      <span className="chip info" style={{ marginLeft: 8 }}>current</span>
+                    )}
+                  </td>
+                  <td className="mono" style={{ fontSize: 11.5 }}>{e.action || '—'}</td>
+                  <td className="mono" style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>{e.appVersion || '—'}</td>
+                  <td>
+                    <StatusChip status={e.status === 'deployed' ? 'healthy' : e.status === 'failed' ? 'failing' : 'paused'} label={e.status} />
+                  </td>
+                  <td className="ago">{e.timestamp ? formatEventTime(e.timestamp) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {data?.note && (
+          <div
+            className="mono"
+            style={{
+              padding: '8px 14px',
+              fontSize: 11,
+              color: 'var(--ink-3)',
+              borderTop: '1px solid var(--line)',
+            }}
+          >
+            note: {data.note}
+          </div>
+        )}
       </div>
     </div>
   )

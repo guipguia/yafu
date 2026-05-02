@@ -124,3 +124,26 @@ type EventsResponse struct {
 	Events []Event        `json:"events"`
 	Errors []ClusterError `json:"errors,omitempty"`
 }
+
+// AppHistoryEntry is one entry in an application's revision history.
+// HelmRelease entries come from status.history (one per Helm release
+// version); Kustomization entries are derived from status.lastApplied
+// (only the current revision is preserved on the resource itself).
+type AppHistoryEntry struct {
+	Revision   string `json:"revision"`
+	Status     string `json:"status,omitempty"`
+	Action     string `json:"action,omitempty"`
+	AppVersion string `json:"appVersion,omitempty"`
+	Timestamp  string `json:"timestamp,omitempty"`
+	Current    bool   `json:"current"`
+}
+
+// AppHistoryResponse is the top-level shape of
+// GET /api/v1/applications/{...}/history.
+type AppHistoryResponse struct {
+	AppID   string            `json:"appId"`
+	Entries []AppHistoryEntry `json:"entries"`
+	// Note carries an explanation when full history isn't available
+	// (e.g. Kustomization only persists its current revision).
+	Note string `json:"note,omitempty"`
+}

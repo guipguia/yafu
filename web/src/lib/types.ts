@@ -125,6 +125,23 @@ export interface EventsResponse {
   errors?: ClusterError[]
 }
 
+export interface AppHistoryEntry {
+  revision: string
+  status?: string
+  action?: string
+  appVersion?: string
+  /** RFC3339 timestamp */
+  timestamp?: string
+  current: boolean
+}
+
+export interface AppHistoryResponse {
+  appId: string
+  entries: AppHistoryEntry[]
+  /** Explanation when full history isn't available (e.g. Kustomization). */
+  note?: string
+}
+
 // ---------- Drawer placeholder types (mock until v0.2 wires real data) ----------
 
 export type EventKind = 'ok' | 'warn' | 'err'

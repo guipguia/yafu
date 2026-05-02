@@ -4,6 +4,7 @@ import type {
   AlertsResponse,
   Application,
   ApplicationsResponse,
+  AppHistoryResponse,
   ClustersResponse,
   EventsResponse,
   SourcesResponse,
@@ -60,6 +61,18 @@ export function useEvents(clusterId?: string) {
     queryKey: ['events', clusterId ?? 'all'],
     queryFn: () => fetchJSON<EventsResponse>(path),
     refetchInterval: POLL_MS,
+  })
+}
+
+export function useAppHistory(app: Application | null) {
+  const path = app
+    ? `/api/v1/applications/${[app.clusterId, app.ns, app.kind, app.name].map(encodeURIComponent).join('/')}/history`
+    : ''
+  return useQuery<AppHistoryResponse>({
+    queryKey: ['history', app?.id ?? ''],
+    queryFn: () => fetchJSON<AppHistoryResponse>(path),
+    refetchInterval: POLL_MS,
+    enabled: app != null,
   })
 }
 

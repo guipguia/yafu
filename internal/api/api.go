@@ -43,6 +43,7 @@ func RegisterAPI(mux *http.ServeMux, deps Deps) {
 	mux.HandleFunc("POST /api/v1/applications/{cluster}/{ns}/{kind}/{name}/reconcile", ah.reconcile)
 	mux.HandleFunc("POST /api/v1/applications/{cluster}/{ns}/{kind}/{name}/suspend", ah.suspend)
 	mux.HandleFunc("POST /api/v1/applications/{cluster}/{ns}/{kind}/{name}/resume", ah.resume)
+	mux.HandleFunc("GET /api/v1/applications/{cluster}/{ns}/{kind}/{name}/history", ah.history)
 
 	sh := &sourcesHandler{registry: deps.Registry, policy: deps.Policy}
 	mux.HandleFunc("GET /api/v1/sources", sh.list)
