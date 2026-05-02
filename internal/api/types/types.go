@@ -203,3 +203,36 @@ type ImageUpdatesResponse struct {
 	Updates []ImageUpdate  `json:"updates"`
 	Errors  []ClusterError `json:"errors,omitempty"`
 }
+
+// ManagedField is one entry from a resource's metadata.managedFields,
+// flattened for the frontend.
+type ManagedField struct {
+	Manager   string `json:"manager"`
+	Operation string `json:"operation"` // Apply | Update
+	Time      string `json:"time,omitempty"`
+	// Foreign is true when Manager is not one of the known Flux
+	// controllers (kustomize-controller, helm-controller, …) — i.e.
+	// likely a manual kubectl/k9s/edit and therefore drift.
+	Foreign bool `json:"foreign"`
+}
+
+// DriftedResource is one Inventory entry with its current managers.
+type DriftedResource struct {
+	Group    string         `json:"group,omitempty"`
+	Version  string         `json:"version,omitempty"`
+	Kind     string         `json:"kind"`
+	Ns       string         `json:"ns,omitempty"`
+	Name     string         `json:"name"`
+	// ready | drift | notfound | unknown
+	Status   string         `json:"status"`
+	Managers []ManagedField `json:"managers,omitempty"`
+}
+
+// DiffResponse is the top-level shape of GET /api/v1/applications/.../diff.
+// Note explains the v0.1 limitation (field-ownership drift only; true
+// Git-vs-cluster diff lands in v0.4 with kustomize-build / helm-render).
+type DiffResponse struct {
+	AppID     string            `json:"appId"`
+	Resources []DriftedResource `json:"resources"`
+	Note      string            `json:"note,omitempty"`
+}

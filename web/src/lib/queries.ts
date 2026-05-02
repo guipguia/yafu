@@ -6,6 +6,7 @@ import type {
   ApplicationsResponse,
   AppHistoryResponse,
   ClustersResponse,
+  DiffResponse,
   EventsResponse,
   ImageUpdatesResponse,
   ManifestResponse,
@@ -75,6 +76,18 @@ export function useEvents(clusterId?: string) {
     queryKey: ['events', clusterId ?? 'all'],
     queryFn: () => fetchJSON<EventsResponse>(path),
     refetchInterval: POLL_MS,
+  })
+}
+
+export function useAppDiff(app: Application | null) {
+  const path = app
+    ? `/api/v1/applications/${[app.clusterId, app.ns, app.kind, app.name].map(encodeURIComponent).join('/')}/diff`
+    : ''
+  return useQuery<DiffResponse>({
+    queryKey: ['diff', app?.id ?? ''],
+    queryFn: () => fetchJSON<DiffResponse>(path),
+    refetchInterval: POLL_MS,
+    enabled: app != null,
   })
 }
 

@@ -186,6 +186,32 @@ export interface ImageUpdatesResponse {
   errors?: ClusterError[]
 }
 
+export interface ManagedField {
+  manager: string
+  /** Apply | Update */
+  operation: string
+  /** RFC3339 */
+  time?: string
+  foreign: boolean
+}
+
+export interface DriftedResource {
+  group?: string
+  version?: string
+  kind: string
+  ns?: string
+  name: string
+  /** ready | drift | notfound | unknown */
+  status: string
+  managers?: ManagedField[]
+}
+
+export interface DiffResponse {
+  appId: string
+  resources: DriftedResource[]
+  note?: string
+}
+
 // ---------- Drawer placeholder types (mock until v0.2 wires real data) ----------
 
 export type EventKind = 'ok' | 'warn' | 'err'

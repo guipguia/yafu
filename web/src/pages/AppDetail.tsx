@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import type { Application } from '@/lib/types'
 import {
+  useAppDiff,
   useAppEvents,
   useAppHistory,
   useAppManifest,
@@ -128,9 +129,7 @@ export function AppDetailDrawer({ app, onClose }: Props) {
         <div className="drawer-body">
           {tab === 'overview' && <OverviewTab app={app} />}
           {tab === 'tree' && <TreeTab app={app} />}
-          {tab === 'diff' && (
-            <div style={{ padding: 18 }}><ComingSoon feature="Live vs desired diff" /></div>
-          )}
+          {tab === 'diff' && <DiffTab app={app} />}
           {tab === 'events' && <EventsTab app={app} />}
           {tab === 'logs' && (
             <div style={{ padding: 18 }}><ComingSoon feature="Live log tail" /></div>
@@ -193,6 +192,120 @@ function OverviewTab({ app }: { app: Application }) {
             )}
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function DiffTab({ app }: { app: Application }) {
+  const { data, isLoading, error } = useAppDiff(app)
+  const resources = data?.resources ?? []
+  const drifted = resources.filter((r) => r.status === 'drift').length
+
+  return (
+    <div style={{ padding: 18 }}>
+      <div className="panel">
+        <div className="panel-head">
+          <div className="panel-title">
+            <span className="lab">Drift</span>
+            Field-ownership check{' '}
+            <span style={{ color: 'var(--ink-3)', fontWeight: 400 }}>
+              ({drifted > 0 ? `${drifted} drifted` : 'none drifted'})
+            </span>
+          </div>
+        </div>
+        {isLoading && resources.length === 0 && <LoadingState label="Checking drift…" />}
+        {error && <ErrorState message={error.message} />}
+        {!isLoading && !error && resources.length === 0 && (
+          <EmptyState
+            title="No drift"
+            hint={
+              data?.note ??
+              'Either the inventory is empty or every field is owned by Flux controllers.'
+            }
+          />
+        )}
+        {resources.length > 0 && (
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th />
+                <th>Resource</th>
+                <th>Status</th>
+                <th>Managers</th>
+              </tr>
+            </thead>
+            <tbody>
+              {resources.map((r, i) => (
+                <tr key={i}>
+                  <td>
+                    <span
+                      className="row-status"
+                      style={{
+                        background:
+                          r.status === 'drift' ? 'var(--err)' :
+                          r.status === 'notfound' ? 'var(--paused)' :
+                          r.status === 'unknown' ? 'var(--warn)' :
+                          'var(--ok)',
+                      }}
+                    />
+                  </td>
+                  <td>
+                    <span className="kind">{r.kind}</span>
+                    <span className="nm" style={{ marginLeft: 6 }}>
+                      {r.ns ? <span style={{ color: 'var(--ink-3)' }}>{r.ns}/</span> : null}
+                      {r.name}
+                    </span>
+                  </td>
+                  <td>
+                    <StatusChip
+                      status={r.status === 'drift' ? 'failing' : r.status === 'notfound' ? 'paused' : 'healthy'}
+                      label={r.status}
+                    />
+                  </td>
+                  <td>
+                    {(r.managers ?? []).length === 0 ? (
+                      <span className="mono" style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>—</span>
+                    ) : (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {r.managers!.map((m, j) => (
+                          <span
+                            key={j}
+                            className="mono"
+                            title={`${m.operation}${m.time ? ' · ' + m.time : ''}`}
+                            style={{
+                              fontSize: 10.5,
+                              padding: '1px 6px',
+                              borderRadius: 2,
+                              border: '1px solid ' + (m.foreign ? 'var(--err)' : 'var(--line-2)'),
+                              color: m.foreign ? 'var(--err)' : 'var(--ink-2)',
+                              background: m.foreign ? 'var(--err-soft)' : 'var(--bg-2)',
+                            }}
+                          >
+                            {m.manager}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {data?.note && resources.length > 0 && (
+          <div
+            className="mono"
+            style={{
+              padding: '8px 14px',
+              fontSize: 11,
+              color: 'var(--ink-3)',
+              borderTop: '1px solid var(--line)',
+            }}
+          >
+            note: {data.note}
+          </div>
+        )}
       </div>
     </div>
   )
