@@ -142,6 +142,23 @@ export interface AppHistoryResponse {
   note?: string
 }
 
+export interface TreeNode {
+  group?: string
+  version?: string
+  kind: string
+  ns?: string
+  name: string
+  /** ready | failing | progressing | notfound | unknown */
+  status: string
+  message?: string
+}
+
+export interface TreeResponse {
+  appId: string
+  nodes: TreeNode[]
+  note?: string
+}
+
 // ---------- Drawer placeholder types (mock until v0.2 wires real data) ----------
 
 export type EventKind = 'ok' | 'warn' | 'err'

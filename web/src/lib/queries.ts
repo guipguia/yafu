@@ -8,6 +8,7 @@ import type {
   ClustersResponse,
   EventsResponse,
   SourcesResponse,
+  TreeResponse,
 } from './types'
 
 const POLL_MS = 5_000
@@ -61,6 +62,18 @@ export function useEvents(clusterId?: string) {
     queryKey: ['events', clusterId ?? 'all'],
     queryFn: () => fetchJSON<EventsResponse>(path),
     refetchInterval: POLL_MS,
+  })
+}
+
+export function useAppTree(app: Application | null) {
+  const path = app
+    ? `/api/v1/applications/${[app.clusterId, app.ns, app.kind, app.name].map(encodeURIComponent).join('/')}/tree`
+    : ''
+  return useQuery<TreeResponse>({
+    queryKey: ['tree', app?.id ?? ''],
+    queryFn: () => fetchJSON<TreeResponse>(path),
+    refetchInterval: POLL_MS,
+    enabled: app != null,
   })
 }
 

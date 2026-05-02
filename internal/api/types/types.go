@@ -147,3 +147,24 @@ type AppHistoryResponse struct {
 	// (e.g. Kustomization only persists its current revision).
 	Note string `json:"note,omitempty"`
 }
+
+// TreeNode is one resource from the application's inventory. v0.1 renders
+// these flat; ownerRef-driven nesting (Deployment → ReplicaSet → Pod) is
+// v0.3 work.
+type TreeNode struct {
+	Group   string `json:"group,omitempty"`
+	Version string `json:"version,omitempty"`
+	Kind    string `json:"kind"`
+	Ns      string `json:"ns,omitempty"`
+	Name    string `json:"name"`
+	// ready | failing | progressing | notfound | unknown
+	Status  string `json:"status"`
+	Message string `json:"message,omitempty"`
+}
+
+// TreeResponse is the top-level shape of GET /api/v1/applications/{...}/tree.
+type TreeResponse struct {
+	AppID string     `json:"appId"`
+	Nodes []TreeNode `json:"nodes"`
+	Note  string     `json:"note,omitempty"`
+}

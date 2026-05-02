@@ -3,6 +3,7 @@ import type { Application } from '@/lib/types'
 import {
   useAppEvents,
   useAppHistory,
+  useAppTree,
   useReconcileApp,
   useResumeApp,
   useSuspendApp,
@@ -125,9 +126,7 @@ export function AppDetailDrawer({ app, onClose }: Props) {
 
         <div className="drawer-body">
           {tab === 'overview' && <OverviewTab app={app} />}
-          {tab === 'tree' && (
-            <div style={{ padding: 18 }}><ComingSoon feature="Resource tree" /></div>
-          )}
+          {tab === 'tree' && <TreeTab app={app} />}
           {tab === 'diff' && (
             <div style={{ padding: 18 }}><ComingSoon feature="Live vs desired diff" /></div>
           )}
@@ -195,6 +194,93 @@ function OverviewTab({ app }: { app: Application }) {
             )}
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function TreeTab({ app }: { app: Application }) {
+  const { data, isLoading, error } = useAppTree(app)
+  const nodes = data?.nodes ?? []
+
+  return (
+    <div style={{ padding: 18 }}>
+      <div className="panel">
+        <div className="panel-head">
+          <div className="panel-title">
+            <span className="lab">Tree</span>
+            Inventory <span style={{ color: 'var(--ink-3)', fontWeight: 400 }}>({nodes.length})</span>
+          </div>
+          <div className="panel-actions">
+            <span className="mono" style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>
+              owner-ref nesting in v0.3
+            </span>
+          </div>
+        </div>
+        {isLoading && nodes.length === 0 && <LoadingState label="Loading inventory…" />}
+        {error && <ErrorState message={error.message} />}
+        {!isLoading && !error && nodes.length === 0 && (
+          <EmptyState
+            title="No inventory"
+            hint={data?.note ?? "Flux hasn't recorded an inventory for this resource yet."}
+          />
+        )}
+        {nodes.length > 0 && (
+          <div className="tree" style={{ padding: '6px 0 8px' }}>
+            {nodes.map((n, i) => (
+              <div key={i} className="node">
+                <span className="twist" />
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background:
+                      n.status === 'failing' ? 'var(--err)' :
+                      n.status === 'progressing' ? 'var(--info)' :
+                      n.status === 'notfound' ? 'var(--paused)' :
+                      n.status === 'unknown' ? 'var(--warn)' :
+                      'var(--ok)',
+                    flex: '0 0 6px',
+                  }}
+                />
+                <span className="kind">{n.kind}</span>
+                <span className="nm">
+                  {n.ns ? <span style={{ color: 'var(--ink-3)' }}>{n.ns}/</span> : null}
+                  {n.name}
+                </span>
+                {n.message && (
+                  <span
+                    className="mono"
+                    style={{
+                      marginLeft: 'auto',
+                      fontSize: 10.5,
+                      color:
+                        n.status === 'failing' ? 'var(--err)' :
+                        n.status === 'notfound' ? 'var(--paused)' :
+                        'var(--ink-3)',
+                    }}
+                  >
+                    {n.message}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        {data?.note && nodes.length > 0 && (
+          <div
+            className="mono"
+            style={{
+              padding: '8px 14px',
+              fontSize: 11,
+              color: 'var(--ink-3)',
+              borderTop: '1px solid var(--line)',
+            }}
+          >
+            note: {data.note}
+          </div>
+        )}
       </div>
     </div>
   )
