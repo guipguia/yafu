@@ -21,9 +21,9 @@ type Config struct {
 	Logger   *slog.Logger
 	Registry cluster.Registry
 
-	// Auth wraps the /api/* sub-mux. Required — without an explicit
-	// middleware the server panics rather than serve the API open.
-	Auth auth.Middleware
+	// Auth bundles the API middleware + optional /auth/* handlers
+	// (login/callback/logout for OIDC). Required — server.New panics on nil.
+	Auth *auth.AuthSet
 
 	// Policy is consulted by handlers to filter results per identity.
 	// The zero value denies everything; main.go uses
@@ -44,8 +44,8 @@ func New(cfg Config) *Server {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
-	if cfg.Auth == nil {
-		panic("server.New: Config.Auth is required")
+	if cfg.Auth == nil || cfg.Auth.Middleware == nil {
+		panic("server.New: Config.Auth.Middleware is required")
 	}
 
 	mux := http.NewServeMux()
@@ -55,14 +55,27 @@ func New(cfg Config) *Server {
 	api.RegisterPublic(mux)
 	web.Register(mux)
 
-	// Authenticated API routes mounted on a sub-mux behind cfg.Auth.
+	// /auth/* — public so an unauthenticated request can reach the IdP
+	// and come back. Only registered when the AuthSet provides handlers
+	// (OIDC mode, today).
+	if cfg.Auth.LoginHandler != nil {
+		mux.HandleFunc("GET /auth/login", cfg.Auth.LoginHandler)
+	}
+	if cfg.Auth.CallbackHandler != nil {
+		mux.HandleFunc("GET /auth/callback", cfg.Auth.CallbackHandler)
+	}
+	if cfg.Auth.LogoutHandler != nil {
+		mux.HandleFunc("GET /auth/logout", cfg.Auth.LogoutHandler)
+	}
+
+	// Authenticated API routes mounted on a sub-mux behind the middleware.
 	apiMux := http.NewServeMux()
 	api.RegisterAPI(apiMux, api.Deps{
 		Registry: cfg.Registry,
 		Policy:   cfg.Policy,
 		Audit:    cfg.Audit,
 	})
-	mux.Handle("/api/", cfg.Auth(apiMux))
+	mux.Handle("/api/", cfg.Auth.Middleware(apiMux))
 
 	handler := chain(mux,
 		withRequestID(),

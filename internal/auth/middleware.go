@@ -12,7 +12,18 @@ import (
 // appropriate status code and does NOT call next.
 type Middleware func(http.Handler) http.Handler
 
-// New returns a Middleware for the given Mode.
+// AuthSet bundles everything needed to wire up an authentication mode:
+// the request middleware, plus optional /auth/* handlers (only OIDC
+// uses these today).
+type AuthSet struct {
+	Middleware      Middleware
+	LoginHandler    http.HandlerFunc // GET /auth/login    (OIDC: redirect to IdP)
+	CallbackHandler http.HandlerFunc // GET /auth/callback (OIDC: code exchange)
+	LogoutHandler   http.HandlerFunc // GET /auth/logout
+}
+
+// New returns a Middleware-only AuthSet for modes that don't need
+// additional routes (anonymous, header). For OIDC, use NewOIDC.
 func New(mode Mode) (Middleware, error) {
 	switch mode {
 	case ModeAnonymous:
@@ -20,10 +31,20 @@ func New(mode Mode) (Middleware, error) {
 	case ModeHeader:
 		return headerMiddleware(), nil
 	case ModeOIDC:
-		return nil, fmt.Errorf("auth mode %q not implemented yet — track in the enterprise roadmap", mode)
+		return nil, fmt.Errorf("auth mode %q requires NewOIDC(ctx, OIDCConfig) — call it directly from main", mode)
 	default:
 		return nil, fmt.Errorf("unknown auth mode %q", mode)
 	}
+}
+
+// NewSet wraps the simple modes (anonymous, header) into an AuthSet so
+// the server can treat every mode uniformly.
+func NewSet(mode Mode) (*AuthSet, error) {
+	mw, err := New(mode)
+	if err != nil {
+		return nil, err
+	}
+	return &AuthSet{Middleware: mw}, nil
 }
 
 // anonymousMiddleware tags every request with a single synthetic identity.

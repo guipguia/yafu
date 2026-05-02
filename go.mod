@@ -3,7 +3,10 @@ module github.com/guipguia/yafu
 go 1.26.0
 
 require (
+	github.com/coreos/go-oidc/v3 v3.18.0
 	github.com/fluxcd/helm-controller/api v1.5.4
+	github.com/fluxcd/image-automation-controller/api v1.1.2
+	github.com/fluxcd/image-reflector-controller/api v1.1.1
 	github.com/fluxcd/kustomize-controller/api v1.8.4
 	github.com/fluxcd/notification-controller/api v1.8.4
 	github.com/fluxcd/pkg/apis/meta v1.25.1
@@ -12,6 +15,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2
 	go.uber.org/zap v1.27.1
+	golang.org/x/oauth2 v0.36.0
 	k8s.io/api v0.36.0
 	k8s.io/apimachinery v0.36.0
 	k8s.io/client-go v0.36.0
@@ -25,12 +29,11 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.13.0 // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
-	github.com/fluxcd/image-automation-controller/api v1.1.2 // indirect
-	github.com/fluxcd/image-reflector-controller/api v1.1.1 // indirect
 	github.com/fluxcd/pkg/apis/acl v0.9.0 // indirect
 	github.com/fluxcd/pkg/apis/kustomize v1.15.1 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v0.21.0 // indirect
@@ -52,7 +55,6 @@ require (
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/net v0.53.0 // indirect
-	golang.org/x/oauth2 v0.34.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.43.0 // indirect
 	golang.org/x/term v0.42.0 // indirect

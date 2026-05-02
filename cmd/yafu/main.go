@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"go.uber.org/zap/zapcore"
@@ -43,8 +44,18 @@ func main() {
 		metricsAddr  = flag.String("metrics-addr", ":8081", "controller-runtime metrics listen address (CRD mode only; \"0\" disables)")
 		probeAddr    = flag.String("probe-addr", ":8082", "controller-runtime healthz listen address (CRD mode only; \"0\" disables)")
 
-		authMode = flag.String("auth-mode", "anonymous", "request authentication: 'anonymous' (dev), 'header' (trust X-Forwarded-* from a proxy), or 'oidc' (not yet implemented)")
+		authMode = flag.String("auth-mode", "anonymous", "request authentication: 'anonymous' (dev), 'header' (trust X-Forwarded-* from a proxy), or 'oidc'.")
 		rbacFile = flag.String("rbac-file", "", "path to YAML RBAC policy. When unset, every authenticated user gets full access (a WARN is logged at startup).")
+
+		oidcIssuer           = flag.String("oidc-issuer", envOr("YAFU_OIDC_ISSUER", ""), "OIDC issuer URL (e.g. https://accounts.google.com). Required when --auth-mode=oidc.")
+		oidcClientID         = flag.String("oidc-client-id", envOr("YAFU_OIDC_CLIENT_ID", ""), "OIDC client_id. Required when --auth-mode=oidc.")
+		oidcClientSecretFile = flag.String("oidc-client-secret-file", envOr("YAFU_OIDC_CLIENT_SECRET_FILE", ""), "Path to a file containing the OIDC client_secret. Preferred over --oidc-client-secret for non-leaky deployments.")
+		oidcClientSecret     = flag.String("oidc-client-secret", envOr("YAFU_OIDC_CLIENT_SECRET", ""), "OIDC client_secret (consider --oidc-client-secret-file instead).")
+		oidcRedirectURL      = flag.String("oidc-redirect-url", envOr("YAFU_OIDC_REDIRECT_URL", ""), "Public URL of yafu's /auth/callback (e.g. https://yafu.example.com/auth/callback). Required when --auth-mode=oidc.")
+		oidcScopes           = flag.String("oidc-scopes", envOr("YAFU_OIDC_SCOPES", "openid,email,profile,groups"), "Comma-separated OAuth2 scopes.")
+		oidcGroupsClaim      = flag.String("oidc-groups-claim", envOr("YAFU_OIDC_GROUPS_CLAIM", "groups"), "ID-token claim that holds group names; varies by IdP.")
+		oidcCookieSecretFile = flag.String("oidc-cookie-secret-file", envOr("YAFU_OIDC_COOKIE_SECRET_FILE", ""), "Path to a file containing the cookie-signing secret. If unset, a random secret is generated at startup.")
+		oidcSecureCookie     = flag.Bool("oidc-secure-cookie", envOr("YAFU_OIDC_SECURE_COOKIE", "true") != "false", "Set Secure flag on cookies. Disable for HTTP dev only.")
 	)
 	// --kubeconfig is registered by sigs.k8s.io/controller-runtime/pkg/client/config
 	// via package init(); we read its value after parsing.
@@ -90,10 +101,29 @@ func main() {
 		logger.Error("auth mode", "err", err)
 		os.Exit(1)
 	}
-	authMW, err := auth.New(parsedAuthMode)
-	if err != nil {
-		logger.Error("auth init", "err", err)
-		os.Exit(1)
+	var authSet *auth.AuthSet
+	switch parsedAuthMode {
+	case auth.ModeOIDC:
+		oidcCfg, err := buildOIDCConfig(
+			*oidcIssuer, *oidcClientID, *oidcClientSecret, *oidcClientSecretFile,
+			*oidcRedirectURL, *oidcScopes, *oidcGroupsClaim,
+			*oidcCookieSecretFile, *oidcSecureCookie,
+		)
+		if err != nil {
+			logger.Error("oidc config", "err", err)
+			os.Exit(1)
+		}
+		authSet, err = auth.NewOIDC(ctx, oidcCfg)
+		if err != nil {
+			logger.Error("oidc init", "err", err)
+			os.Exit(1)
+		}
+	default:
+		authSet, err = auth.NewSet(parsedAuthMode)
+		if err != nil {
+			logger.Error("auth init", "err", err)
+			os.Exit(1)
+		}
 	}
 	logger.Info("auth mode", "mode", parsedAuthMode)
 	if parsedAuthMode == auth.ModeAnonymous {
@@ -119,7 +149,7 @@ func main() {
 		Addr:     *addr,
 		Logger:   logger,
 		Registry: registry,
-		Auth:     authMW,
+		Auth:     authSet,
 		Policy:   policy,
 		Audit:    auditLog,
 	})
@@ -229,6 +259,51 @@ func lookupFlag(name string) string {
 		return f.Value.String()
 	}
 	return ""
+}
+
+func buildOIDCConfig(
+	issuer, clientID, clientSecret, clientSecretFile,
+	redirectURL, scopesCSV, groupsClaim, cookieSecretFile string,
+	secureCookie bool,
+) (auth.OIDCConfig, error) {
+	if issuer == "" || clientID == "" || redirectURL == "" {
+		return auth.OIDCConfig{}, fmt.Errorf("--oidc-issuer, --oidc-client-id and --oidc-redirect-url are required for auth-mode=oidc")
+	}
+
+	if clientSecretFile != "" {
+		b, err := os.ReadFile(clientSecretFile)
+		if err != nil {
+			return auth.OIDCConfig{}, fmt.Errorf("read client_secret file %s: %w", clientSecretFile, err)
+		}
+		clientSecret = strings.TrimSpace(string(b))
+	}
+
+	var cookieSecret []byte
+	if cookieSecretFile != "" {
+		b, err := os.ReadFile(cookieSecretFile)
+		if err != nil {
+			return auth.OIDCConfig{}, fmt.Errorf("read cookie_secret file %s: %w", cookieSecretFile, err)
+		}
+		cookieSecret = []byte(strings.TrimSpace(string(b)))
+	}
+
+	scopes := []string{}
+	for _, s := range strings.Split(scopesCSV, ",") {
+		if t := strings.TrimSpace(s); t != "" {
+			scopes = append(scopes, t)
+		}
+	}
+
+	return auth.OIDCConfig{
+		Issuer:       issuer,
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		RedirectURL:  redirectURL,
+		Scopes:       scopes,
+		GroupsClaim:  groupsClaim,
+		CookieSecret: cookieSecret,
+		SecureCookie: secureCookie,
+	}, nil
 }
 
 func newLogger(level string) *slog.Logger {
