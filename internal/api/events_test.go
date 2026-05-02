@@ -60,6 +60,65 @@ func TestEventsHandler_FiltersFluxEvents(t *testing.T) {
 	}
 }
 
+func TestEventsHandler_FilterByApp(t *testing.T) {
+	now := metav1.Now()
+	objs := []client.Object{
+		mkEvent("ev-1", "shop", "kustomize.toolkit.fluxcd.io/v1", "Kustomization", "checkout", corev1.EventTypeNormal, "ReconciliationSucceeded", "applied", now),
+		mkEvent("ev-2", "shop", "kustomize.toolkit.fluxcd.io/v1", "Kustomization", "cart", corev1.EventTypeNormal, "ReconciliationSucceeded", "applied", now),
+		mkEvent("ev-3", "shop", "helm.toolkit.fluxcd.io/v2", "HelmRelease", "checkout", corev1.EventTypeWarning, "Failed", "boom", now),
+		mkEvent("ev-4", "ml", "kustomize.toolkit.fluxcd.io/v1", "Kustomization", "checkout", corev1.EventTypeNormal, "ReconciliationSucceeded", "applied", now),
+	}
+	e := newEventsEntry("alpha", "Alpha", objs...)
+
+	reg := &stubRegistry{entries: []*cluster.Entry{e}}
+	h := &eventsHandler{registry: reg, policy: auth.DefaultAllowAllPolicy}
+
+	// Filter for shop/Kustomization/checkout — only ev-1 should match.
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/events?cluster=alpha&ns=shop&kind=Kustomization&name=checkout", nil)
+	w := httptest.NewRecorder()
+	h.list(w, req)
+
+	var resp types.EventsResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(resp.Events) != 1 {
+		t.Fatalf("got %d events, want 1 (only the matching app)", len(resp.Events))
+	}
+	got := resp.Events[0]
+	if got.Object != "Kustomization/checkout" || got.Ns != "shop" {
+		t.Errorf("filtered event mismatched: %+v", got)
+	}
+}
+
+func TestEventFilter_MatchesObject(t *testing.T) {
+	ev := &corev1.Event{
+		InvolvedObject: corev1.ObjectReference{Namespace: "shop", Kind: "Kustomization", Name: "checkout"},
+	}
+	cases := []struct {
+		name string
+		f    eventFilter
+		want bool
+	}{
+		{"empty matches anything", eventFilter{}, true},
+		{"ns match", eventFilter{ns: "shop"}, true},
+		{"ns mismatch", eventFilter{ns: "ml"}, false},
+		{"kind match", eventFilter{kind: "Kustomization"}, true},
+		{"kind mismatch", eventFilter{kind: "HelmRelease"}, false},
+		{"name match", eventFilter{name: "checkout"}, true},
+		{"name mismatch", eventFilter{name: "cart"}, false},
+		{"all-three match", eventFilter{ns: "shop", kind: "Kustomization", name: "checkout"}, true},
+		{"one of three mismatches", eventFilter{ns: "shop", kind: "HelmRelease", name: "checkout"}, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := c.f.matchesObject(ev); got != c.want {
+				t.Errorf("matchesObject = %v, want %v", got, c.want)
+			}
+		})
+	}
+}
+
 func TestIsFluxEvent(t *testing.T) {
 	cases := []struct {
 		apiVersion string

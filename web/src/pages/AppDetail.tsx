@@ -1,8 +1,8 @@
 import { useState, type ReactNode } from 'react'
 import type { Application } from '@/lib/types'
-import { useReconcileApp, useResumeApp, useSuspendApp } from '@/lib/queries'
+import { useAppEvents, useReconcileApp, useResumeApp, useSuspendApp } from '@/lib/queries'
 import { StatusChip } from '@/components/StatusChip'
-import { ComingSoon } from '@/components/States'
+import { ComingSoon, EmptyState, ErrorState, LoadingState } from '@/components/States'
 import { Ic } from '@/components/Icons'
 
 type Tab = 'overview' | 'tree' | 'diff' | 'events' | 'logs' | 'history' | 'yaml'
@@ -125,9 +125,7 @@ export function AppDetailDrawer({ app, onClose }: Props) {
           {tab === 'diff' && (
             <div style={{ padding: 18 }}><ComingSoon feature="Live vs desired diff" /></div>
           )}
-          {tab === 'events' && (
-            <div style={{ padding: 18 }}><ComingSoon feature="Reconciliation events" /></div>
-          )}
+          {tab === 'events' && <EventsTab app={app} />}
           {tab === 'logs' && (
             <div style={{ padding: 18 }}><ComingSoon feature="Live log tail" /></div>
           )}
@@ -196,6 +194,75 @@ function OverviewTab({ app }: { app: Application }) {
       </div>
     </div>
   )
+}
+
+function EventsTab({ app }: { app: Application }) {
+  const { data, isLoading, error } = useAppEvents(app)
+  const events = data?.events ?? []
+
+  return (
+    <div style={{ padding: 18 }}>
+      <div className="panel">
+        <div className="panel-head">
+          <div className="panel-title">
+            <span className="lab">Events</span>Reconciliation timeline
+          </div>
+          <div className="panel-actions">
+            <span className="mono" style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>
+              {events.length > 0 ? `${events.length} events · live` : ''}
+            </span>
+          </div>
+        </div>
+        <div className="panel-body">
+          {isLoading && events.length === 0 && <LoadingState label="Loading events…" />}
+          {error && <ErrorState message={error.message} />}
+          {!isLoading && !error && events.length === 0 && (
+            <EmptyState
+              title="No events"
+              hint="Flux controllers haven't emitted Events for this resource recently. Trigger a reconcile to generate one."
+            />
+          )}
+          {events.length > 0 && (
+            <div className="timeline">
+              {events.map((e) => (
+                <div key={e.id} className={`tl-item ${e.kind}`}>
+                  <div className="tl-meta">
+                    <span>{formatEventTime(e.t)}</span>
+                    <span>{e.source || 'flux'}</span>
+                    <span
+                      style={{
+                        textTransform: 'uppercase',
+                        color:
+                          e.kind === 'err' ? 'var(--err)' :
+                          e.kind === 'warn' ? 'var(--warn)' :
+                          'var(--ok)',
+                      }}
+                    >
+                      {e.reason}
+                    </span>
+                  </div>
+                  <div className="tl-msg">{e.message}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function formatEventTime(rfc3339: string): string {
+  if (!rfc3339) return ''
+  try {
+    return new Date(rfc3339).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
+  } catch {
+    return rfc3339
+  }
 }
 
 function KV({ k, v }: { k: string; v: ReactNode }) {

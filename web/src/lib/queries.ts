@@ -63,6 +63,23 @@ export function useEvents(clusterId?: string) {
   })
 }
 
+export function useAppEvents(app: Application | null) {
+  const path = app
+    ? `/api/v1/events?${new URLSearchParams({
+        cluster: app.clusterId,
+        ns: app.ns,
+        kind: app.kind,
+        name: app.name,
+      }).toString()}`
+    : ''
+  return useQuery<EventsResponse>({
+    queryKey: ['events', 'app', app?.id ?? ''],
+    queryFn: () => fetchJSON<EventsResponse>(path),
+    refetchInterval: POLL_MS,
+    enabled: app != null,
+  })
+}
+
 // ---------- mutations ----------
 
 type MutationVerb = 'reconcile' | 'suspend' | 'resume'

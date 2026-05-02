@@ -28,6 +28,29 @@ type eventsHandler struct {
 	policy   auth.Policy
 }
 
+// eventFilter narrows /api/v1/events to events involving a specific
+// resource. Empty fields match anything; the AppDetail Events tab sets
+// all four to scope to one application.
+type eventFilter struct {
+	cluster string // matches Entry.Name
+	ns      string // matches involvedObject.namespace
+	kind    string // matches involvedObject.kind
+	name    string // matches involvedObject.name
+}
+
+func (f eventFilter) matchesObject(ev *corev1.Event) bool {
+	if f.ns != "" && ev.InvolvedObject.Namespace != f.ns {
+		return false
+	}
+	if f.kind != "" && ev.InvolvedObject.Kind != f.kind {
+		return false
+	}
+	if f.name != "" && ev.InvolvedObject.Name != f.name {
+		return false
+	}
+	return true
+}
+
 func (h *eventsHandler) list(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	resp := types.EventsResponse{Events: []types.Event{}}
@@ -39,11 +62,18 @@ func (h *eventsHandler) list(w http.ResponseWriter, r *http.Request) {
 
 	id, _ := auth.IdentityFrom(r.Context())
 
-	clusterFilter := r.URL.Query().Get("cluster")
+	q := r.URL.Query()
+	filter := eventFilter{
+		cluster: q.Get("cluster"),
+		ns:      q.Get("ns"),
+		kind:    q.Get("kind"),
+		name:    q.Get("name"),
+	}
+
 	allEntries := h.registry.List()
 	entries := allEntries[:0]
 	for _, e := range allEntries {
-		if clusterFilter != "" && e.Name != clusterFilter {
+		if filter.cluster != "" && e.Name != filter.cluster {
 			continue
 		}
 		if !h.policy.Authorize(id, "get", e.Name) {
@@ -67,7 +97,7 @@ func (h *eventsHandler) list(w http.ResponseWriter, r *http.Request) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			evs, err := listEventsForCluster(ctx, e)
+			evs, err := listEventsForCluster(ctx, e, filter)
 			if err != nil {
 				results <- result{err: &types.ClusterError{Cluster: e.Name, Error: err.Error()}}
 				return
@@ -94,13 +124,18 @@ func (h *eventsHandler) list(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
-func listEventsForCluster(ctx context.Context, e *cluster.Entry) ([]types.Event, error) {
+func listEventsForCluster(ctx context.Context, e *cluster.Entry, filter eventFilter) ([]types.Event, error) {
 	if !e.Status().Reachable {
 		return nil, fmt.Errorf("cluster unreachable")
 	}
 
+	listOpts := []client.ListOption{&client.ListOptions{Limit: maxEventsPerCluster * 5}}
+	if filter.ns != "" {
+		listOpts = append(listOpts, client.InNamespace(filter.ns))
+	}
+
 	var list corev1.EventList
-	if err := e.Client.List(ctx, &list, &client.ListOptions{Limit: maxEventsPerCluster * 5}); err != nil {
+	if err := e.Client.List(ctx, &list, listOpts...); err != nil {
 		return nil, fmt.Errorf("list events: %w", err)
 	}
 
@@ -108,6 +143,9 @@ func listEventsForCluster(ctx context.Context, e *cluster.Entry) ([]types.Event,
 	for i := range list.Items {
 		ev := &list.Items[i]
 		if !isFluxEvent(ev) {
+			continue
+		}
+		if !filter.matchesObject(ev) {
 			continue
 		}
 		out = append(out, eventToDTO(e, ev))
