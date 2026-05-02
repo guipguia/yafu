@@ -82,6 +82,10 @@ test-go: ## Run Go tests
 test-web: ## Run web tests once
 	cd $(WEB_DIR) && $(NPM) test -- --run
 
+.PHONY: e2e
+e2e: ## Run kind-based end-to-end smoke test (~5 min)
+	bash test/e2e/run.sh
+
 .PHONY: lint
 lint: lint-go lint-web ## Run all linters
 

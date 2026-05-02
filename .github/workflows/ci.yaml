@@ -111,3 +111,46 @@ jobs:
       - uses: azure/setup-helm@v4
       - run: helm lint charts/yafu
       - run: helm template charts/yafu > /dev/null
+
+  e2e:
+    name: E2E (kind + Flux + yafu)
+    runs-on: ubuntu-latest
+    # Skip the long E2E for pure docs / chat / memory / images.
+    # When the test set or any code path the test exercises changes,
+    # the generic `paths` matcher above (workflow-level) lands us here.
+    needs: [test-go, test-web, helm-lint, build-go]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - uses: helm/kind-action@v1
+        with:
+          install_only: true
+
+      - uses: azure/setup-helm@v4
+
+      - name: Install Flux CLI
+        run: curl -s https://fluxcd.io/install.sh | sudo bash
+
+      - name: Run E2E
+        env:
+          # Tighten the per-step timeout; CI runners are stable.
+          TIMEOUT: '180'
+        run: make e2e
+
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          echo "=== yafu pod ==="
+          kubectl -n yafu-system describe deploy/yafu || true
+          kubectl -n yafu-system logs deploy/yafu --tail=200 || true
+          echo "=== Cluster CR ==="
+          kubectl get clusters.yafu.io -o yaml || true
+          echo "=== Flux ==="
+          flux check || true
+          flux get all -A || true
