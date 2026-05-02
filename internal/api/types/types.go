@@ -239,6 +239,72 @@ type DiffResponse struct {
 	Note      string            `json:"note,omitempty"`
 }
 
+// --- Rendered Git-vs-cluster diff ---
+
+// RenderResource is one rendered → live comparison result. Mirrors
+// web/src/lib/types.ts:RenderResource.
+type RenderResource struct {
+	Group   string `json:"group,omitempty"`
+	Version string `json:"version,omitempty"`
+	Kind    string `json:"kind"`
+	Ns      string `json:"ns,omitempty"`
+	Name    string `json:"name"`
+	// in-sync | drifted | missing-on-cluster | extra-on-cluster | render-error
+	Status string `json:"status"`
+	// Hunks is set only when Status == "drifted".
+	Hunks []RenderHunk `json:"hunks,omitempty"`
+	// RenderError carries stderr from kustomize/helm when the build
+	// failed for this specific resource, OR the API error message
+	// when the live fetch failed (status="render-error").
+	RenderError string `json:"renderError,omitempty"`
+	// ReconcileWould indicates the operation Flux would perform on
+	// the next reconcile: "create" / "update" / "delete".
+	ReconcileWould string `json:"reconcileWould,omitempty"`
+}
+
+// RenderHunk groups related diff lines under a human label like
+// "spec.replicas" or "metadata.annotations".
+type RenderHunk struct {
+	Label string       `json:"label"`
+	Lines []RenderLine `json:"lines"`
+}
+
+// RenderLine is one line of unified diff output.
+type RenderLine struct {
+	// context | add | del | empty
+	Kind      string `json:"kind"`
+	DesiredLn *int   `json:"desiredLn,omitempty"`
+	LiveLn    *int   `json:"liveLn,omitempty"`
+	Text      string `json:"text"`
+}
+
+// RenderSource describes the source artifact the render was built from.
+type RenderSource struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	// GitRepository | HelmRepository | OCIRepository | Bucket
+	Kind string `json:"kind"`
+	// Branch / tag / semver constraint, when present.
+	Ref string `json:"ref,omitempty"`
+	// Resolved revision (commit SHA, chart version digest, etc.)
+	Revision string `json:"revision"`
+	// "kustomize build" | "helm template"
+	Method string `json:"method"`
+}
+
+// RenderResponse is the top-level shape of GET
+// /api/v1/applications/.../render.
+type RenderResponse struct {
+	AppID      string           `json:"appId"`
+	Source     RenderSource     `json:"source"`
+	RenderedAt string           `json:"renderedAt"`
+	Resources  []RenderResource `json:"resources"`
+	// Error is set when the render failed at the top level (artifact
+	// fetch error, source not yet ready, etc). When it's set, Resources
+	// is empty.
+	Error string `json:"error,omitempty"`
+}
+
 // PodInfo is one Pod that's a candidate target for log streaming. The
 // Logs tab lets the user pick from this list.
 type PodInfo struct {
