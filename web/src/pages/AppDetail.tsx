@@ -655,6 +655,11 @@ function RenderDiffTab({ app }: { app: Application }) {
   if (isLoading) return <RenderLoadingState />
   if (error || !data) return <RenderUnavailableState message={error?.message} />
 
+  // Backend may return 200 with a top-level error (artifact missing,
+  // build failed). Show the error state in that case rather than
+  // rendering against an empty resource list.
+  if (data.error) return <RenderTopLevelError error={data.error} source={data.source} />
+
   const resources = data.resources
   const counts = countByStatus(resources)
   const selected = resources[selectedIdx] ?? resources[0]
@@ -1053,39 +1058,67 @@ function RenderErrorState({ resource }: { resource: RenderResource }) {
   )
 }
 
-// RenderUnavailableState is shown when /api/v1/applications/.../render
-// returns 501 (the current stub) or any other error. It's intentionally
-// honest: the rendered diff isn't built yet, and the working diff lives
-// in the Drift sub-tab. When the backend lands and starts returning 200,
-// this state stops appearing.
+// RenderUnavailableState fires when the /render endpoint itself
+// returned a transport-level error (HTTP 4xx/5xx, network down,
+// auth redirect). For top-level "render failed" errors the backend
+// returns 200 with response.error; those are handled by
+// RenderTopLevelError below.
 function RenderUnavailableState({ message }: { message?: string }) {
   return (
     <div className="render-diff">
       <div
-        className="state info"
+        className="state"
         style={{ marginTop: 14, marginLeft: 18, marginRight: 18 }}
       >
         <div className="ico-wrap" aria-hidden="true">
           <Ic.warn />
         </div>
-        <h4>Rendered diff not yet available</h4>
+        <h4>Couldn't reach the render endpoint</h4>
         <p>
-          The Git-vs-cluster view requires the backend to render the source
-          (<code>kustomize build</code> or <code>helm template</code>) at the
-          current revision and diff every resource against the live cluster.
-          That work is the next slice — see the project roadmap.
-        </p>
-        <p>
-          For now, switch to the <strong>Drift</strong> sub-tab — it shows
-          field-ownership drift against what Flux last applied, which catches
-          the most common case (someone ran <code>kubectl edit</code> on a
-          managed resource).
+          The Git-vs-cluster diff is unavailable. Check that the cluster is
+          reachable and that you have permission to read it.
         </p>
         {message && (
           <pre className="err-output" role="alert" style={{ maxWidth: 520 }}>
             {message}
           </pre>
         )}
+      </div>
+    </div>
+  )
+}
+
+// RenderTopLevelError fires when /render returned 200 but the
+// backend couldn't render the source — artifact not ready, build
+// failed, missing source, etc. The backend stuffs the underlying
+// error into response.error and we surface it verbatim.
+function RenderTopLevelError({
+  error,
+  source,
+}: {
+  error: string
+  source: { name: string; namespace: string; method: string }
+}) {
+  return (
+    <div className="render-diff">
+      <div
+        className="state"
+        style={{ marginTop: 14, marginLeft: 18, marginRight: 18 }}
+      >
+        <div className="ico-wrap" aria-hidden="true">
+          <Ic.warn />
+        </div>
+        <h4>Source render failed</h4>
+        <p>
+          {source.method} couldn't produce a manifest for{' '}
+          <code>
+            {source.namespace}/{source.name}
+          </code>
+          . The diff is unavailable until the build error is resolved.
+        </p>
+        <pre className="err-output" role="alert" style={{ maxWidth: 640 }}>
+          {error}
+        </pre>
       </div>
     </div>
   )
