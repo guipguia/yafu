@@ -17,11 +17,11 @@ flowchart LR
       subgraph YAFU pod
         HTTP[HTTP server<br/>:8080]
         AUTH[auth middleware]
-        API[/api/v1 handlers]
+        API["/api/v1 handlers"]
         MGR[controller-runtime<br/>manager]
         REG[Cluster registry<br/>CRD or file backed]
         AUDIT[audit log<br/>JSON to stdout]
-        METRICS[/metrics<br/>Prometheus]
+        METRICS["/metrics<br/>Prometheus"]
       end
       HTTP --> AUTH --> API
       API --> REG
