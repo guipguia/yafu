@@ -8,8 +8,12 @@ A modern, open-source web UI for [FluxCD][flux] — see your fleet,
 inspect drift, and trigger reconciles across every cluster you run
 Flux in, from a single dashboard.
 
-<!-- Drop a screenshot/GIF at docs/screenshots/fleet.png to surface it here -->
-<!-- ![yafu Fleet view](docs/screenshots/fleet.png) -->
+![yafu Fleet view — every registered cluster, health, Flux version, and reconciliation status at a glance](docs/screenshots/fleet.png)
+
+|                                                                        |                                                                       |
+| :--------------------------------------------------------------------: | :-------------------------------------------------------------------: |
+|                  ![Applications list](docs/screenshots/apps.png)                  |               ![Side-by-side Git vs cluster diff](docs/screenshots/diff.png)               |
+| **Applications** — every Kustomization and HelmRelease across the fleet, with sync status, source, and last revision. | **Drift diff** — what's in Git versus what's actually on the cluster, side-by-side, with the changed fields highlighted. |
 
 ## What yafu does
 
