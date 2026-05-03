@@ -21,18 +21,21 @@ and [operations.md](./operations.md).
 
 ## Install with Helm
 
-The Helm chart is published to a chart repository hosted on GitHub
-Pages. After the first chart release lands you can:
+The Helm chart is published as an OCI artifact alongside the
+container image on GitHub Container Registry. No `helm repo add`
+step is needed — Helm v3.8+ pulls OCI charts directly:
 
 ```sh
-helm repo add yafu https://guipguia.github.io/yafu
-helm repo update
-helm install yafu yafu/yafu \
+helm install yafu oci://ghcr.io/guipguia/charts/yafu \
+  --version 0.1.0 \
   --namespace yafu-system \
   --create-namespace
 ```
 
-Until then (or for an unreleased build) install from the working tree:
+The container image lives at `ghcr.io/guipguia/yafu:0.1.0` and is
+referenced by the chart's default `image.repository`.
+
+For an unreleased build, install from the working tree:
 
 ```sh
 git clone https://github.com/guipguia/yafu
@@ -139,7 +142,8 @@ networkPolicy:
 Apply with:
 
 ```sh
-helm upgrade --install yafu yafu/yafu \
+helm upgrade --install yafu oci://ghcr.io/guipguia/charts/yafu \
+  --version 0.1.0 \
   --namespace yafu-system \
   --values values.yaml
 ```

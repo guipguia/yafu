@@ -20,7 +20,9 @@ jobs:
       - name: Compute build metadata
         id: meta
         run: |
-          VERSION="${GITHUB_REF#refs/tags/}"
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#v}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "commit=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
           echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
@@ -50,3 +52,51 @@ jobs:
             DATE=${{ steps.meta.outputs.date }}
           provenance: true
           sbom: true
+
+  chart:
+    name: Package and push Helm chart (OCI)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Compute version
+        id: meta
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#v}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - uses: azure/setup-helm@v5
+        with:
+          version: latest
+
+      - name: Login to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Package chart
+        run: |
+          helm package charts/yafu \
+            --version "${{ steps.meta.outputs.version }}" \
+            --app-version "${{ steps.meta.outputs.version }}" \
+            --destination "${{ runner.temp }}"
+
+      - name: Push chart to ghcr.io
+        run: |
+          helm push \
+            "${{ runner.temp }}/yafu-${{ steps.meta.outputs.version }}.tgz" \
+            "oci://ghcr.io/${{ github.repository_owner }}/charts"
+
+      - name: Attach chart tarball to GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          gh release create "$TAG" \
+            "${{ runner.temp }}/yafu-${{ steps.meta.outputs.version }}.tgz" \
+            --title "$TAG" \
+            --generate-notes \
+            || gh release upload "$TAG" \
+                 "${{ runner.temp }}/yafu-${{ steps.meta.outputs.version }}.tgz" \
+                 --clobber

@@ -46,7 +46,8 @@ release yet — see [CHANGELOG.md](CHANGELOG.md).
 
 ```sh
 # 1. Install on a cluster that already runs Flux
-helm install yafu ./charts/yafu \
+helm install yafu oci://ghcr.io/guipguia/charts/yafu \
+  --version 0.1.0 \
   --namespace yafu-system \
   --create-namespace
 
