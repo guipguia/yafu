@@ -98,7 +98,7 @@ sequenceDiagram
         and
         API->>C2: List Kustomizations + HelmReleases
     end
-    Note over API: per-cluster errors collected; one slow cluster<br/>does not block the response (partial fan-out)
+    Note over API: partial fan-out — per-cluster errors collected, one slow cluster does not block the response
     API-->>UI: { applications: [...], errors: [...] }
 ```
 
