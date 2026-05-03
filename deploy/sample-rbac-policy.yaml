@@ -13,9 +13,11 @@
 #   group:<name>              case-insensitive group membership
 #   *                         match everyone
 #
-# Verbs are exact strings or "*". Today only "get" is exercised by the
-# read endpoints; reconcile/suspend/resume land in v0.2 alongside the
-# mutation endpoints.
+# Verbs are exact strings or "*". Currently exercised verbs:
+#   get        — read endpoints (clusters, applications, sources, …)
+#   reconcile  — POST .../reconcile (annotates the resource so Flux re-runs)
+#   suspend    — POST .../suspend  (sets .spec.suspend=true)
+#   resume     — POST .../resume   (sets .spec.suspend=false)
 #
 # Cluster names are exact or filepath-globs ("prod-*", "edge-tokyo", "*").
 

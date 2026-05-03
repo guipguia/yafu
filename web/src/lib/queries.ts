@@ -131,10 +131,10 @@ export function useAppDiff(app: Application | null) {
 }
 
 // useAppRender hits the rendered Git-vs-cluster diff endpoint. The
-// backend is not yet implemented (504/404 expected); the Diff tab
-// shows mock data with a "Preview" banner until the render path
-// lands. Once the backend ships, this hook starts returning real
-// data with no frontend changes.
+// backend fetches the source artifact, runs kustomize-build /
+// helm-template, and diffs each rendered resource against live
+// cluster state. The cadence is deliberately slower than other
+// tabs because rendering is expensive (subcharts, large values).
 export function useAppRender(app: Application | null, enabled = true) {
   const path = app
     ? `/api/v1/applications/${[app.clusterId, app.ns, app.kind, app.name].map(encodeURIComponent).join('/')}/render`

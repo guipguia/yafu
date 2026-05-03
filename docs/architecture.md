@@ -52,7 +52,7 @@ flowchart LR
 | Layer | Package(s) | Responsibility |
 |-------|-----------|----------------|
 | HTTP server | `internal/server` | Mux setup, middleware (request-id, recover, observability), TLS termination is handled by ingress. |
-| Auth | `internal/auth` | Identity resolution (anonymous / header / OIDC stub) and the RBAC policy engine. |
+| Auth | `internal/auth` | Identity resolution (anonymous / header-trust / native OIDC authorization-code-with-PKCE) and the RBAC policy engine. |
 | API handlers | `internal/api` | One handler per resource: clusters, applications, sources, alerts, events, mutations, whoami, version, stream. |
 | Cluster registry | `internal/cluster` | The `Registry` interface plus two implementations: `FileRegistry` (dev/CI) and `CRDRegistry` (production, populated by the controller). Per-cluster typed `client.Client` + `discovery.DiscoveryInterface`. Periodic `Probe` updates a `Status` snapshot. |
 | Cluster controller | `internal/controllers` | `controller-runtime` Reconciler that watches `yafu.io/v1alpha1.Cluster` CRs, resolves credentials from `Secret`s (or in-cluster), builds clients, runs probes, updates CR status, and publishes the live entry into `CRDRegistry`. |

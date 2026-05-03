@@ -675,9 +675,9 @@ function DriftTab({ app }: { app: Application }) {
 }
 
 // RenderDiffTab is the rendered Git-vs-cluster diff view. It hits
-// /api/v1/applications/.../render via useAppRender. The backend
-// returns 501 today (the stub); when the real handler lands the
-// view renders the response without code changes here.
+// /api/v1/applications/.../render via useAppRender, which fetches
+// the source artifact, runs kustomize-build / helm-template, and
+// diffs each rendered resource against live cluster state.
 function RenderDiffTab({ app }: { app: Application }) {
   const { data, isLoading, error } = useAppRender(app)
   const [selectedIdx, setSelectedIdx] = useState(0)
