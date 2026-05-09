@@ -9,7 +9,7 @@ require (
 	github.com/fluxcd/image-reflector-controller/api v1.1.1
 	github.com/fluxcd/kustomize-controller/api v1.8.4
 	github.com/fluxcd/notification-controller/api v1.8.4
-	github.com/fluxcd/pkg/apis/meta v1.26.0
+	github.com/fluxcd/pkg/apis/meta v1.27.0
 	github.com/fluxcd/source-controller/api v1.8.3
 	github.com/google/uuid v1.6.0
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
