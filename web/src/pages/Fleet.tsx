@@ -1,4 +1,4 @@
-import { useClusters } from '@/lib/queries'
+import { useImageUpdates, useClusters } from '@/lib/queries'
 import type { Cluster } from '@/lib/types'
 import { ClusterCard } from '@/components/ClusterCard'
 import { Sparkline } from '@/components/Sparkline'
@@ -16,14 +16,21 @@ interface Props {
 }
 
 export function FleetPage({ layout, setLayout, clusterId, pickCluster }: Props) {
-  const { data, isLoading, error } = useClusters()
+  const { data, isLoading, error, refetch, isFetching } = useClusters()
+  const { data: imgData } = useImageUpdates()
   const clusters = data?.clusters ?? []
+  const imageUpdates = imgData?.updates ?? []
 
   const totalApps = clusters.reduce((a, c) => a + c.apps, 0)
   const totalReady = clusters.reduce((a, c) => a + c.ready, 0)
   const totalFail = clusters.reduce((a, c) => a + c.failing, 0)
   const totalSusp = clusters.reduce((a, c) => a + c.suspended, 0)
   const readyPct = totalApps > 0 ? ((totalReady / totalApps) * 100).toFixed(1) : '—'
+
+  // Image-update stat: "pending" means an ImagePolicy has resolved a newer
+  // tag than the live image — that's the actual operator-facing signal.
+  const imageReady = imageUpdates.filter((u) => u.status === 'ready' && u.latestTag).length
+  const imageFailing = imageUpdates.filter((u) => u.status === 'failing').length
 
   return (
     <>
@@ -53,14 +60,16 @@ export function FleetPage({ layout, setLayout, clusterId, pickCluster }: Props) 
               Matrix
             </button>
             <button className={layout === 'map' ? 'active' : ''} onClick={() => setLayout('map')}>
-              Map
+              Compact
             </button>
           </div>
-          <button className="btn">
-            <Ic.filter /> Filter
-          </button>
-          <button className="btn">
-            <Ic.refresh /> Refresh
+          <button
+            className="btn"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+            title="Refetch cluster status now"
+          >
+            <Ic.refresh /> {isFetching ? 'Refreshing…' : 'Refresh'}
           </button>
         </div>
       </div>
@@ -84,7 +93,21 @@ export function FleetPage({ layout, setLayout, clusterId, pickCluster }: Props) 
           tone={totalFail > 0 ? 'err' : ''}
         />
         <Stat label="Suspended" value={totalSusp} tone="warn" accent="var(--paused)" />
-        <Stat label="Image updates pending" value={'—'} delta={<>v0.2</>} />
+        <Stat
+          label="Image updates"
+          value={imageReady}
+          of={imageUpdates.length || undefined}
+          delta={
+            imageUpdates.length === 0 ? (
+              <>no ImagePolicies</>
+            ) : imageFailing > 0 ? (
+              <span style={{ color: 'var(--err)' }}>{imageFailing} failing</span>
+            ) : (
+              <>resolved</>
+            )
+          }
+          tone={imageFailing > 0 ? 'err' : ''}
+        />
       </div>
 
       {isLoading && clusters.length === 0 && <LoadingState label="Loading clusters…" />}
@@ -152,29 +175,25 @@ function FleetMatrix({
   activeId: string | null
   onPick: (id: string) => void
 }) {
-  const buckets = ['shop', 'identity', 'platform', 'observability', 'ml', 'data', 'web', 'ingress']
   return (
     <div className="panel" style={{ overflow: 'hidden' }}>
       <div className="panel-head">
         <div className="panel-title">
-          <span className="lab">View</span>Cluster × Namespace matrix
-        </div>
-        <div className="panel-actions">
-          <span className="mono" style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>
-            namespace breakdown lands in v0.2
-          </span>
+          <span className="lab">View</span>Cluster status matrix
         </div>
       </div>
       <div style={{ overflowX: 'auto' }}>
         <table className="tbl">
           <thead>
             <tr>
-              <th style={{ minWidth: 200 }}>Cluster</th>
-              {buckets.map((b) => (
-                <th key={b} style={{ minWidth: 90 }}>
-                  {b}
-                </th>
-              ))}
+              <th style={{ minWidth: 220 }}>Cluster</th>
+              <th>Env</th>
+              <th>Apps</th>
+              <th>Ready</th>
+              <th>Failing</th>
+              <th>Suspended</th>
+              <th>Sources</th>
+              <th>Flux</th>
               <th>Health</th>
             </tr>
           </thead>
@@ -204,13 +223,35 @@ function FleetMatrix({
                     </span>
                   )}
                 </td>
-                {buckets.map((b) => (
-                  <td key={b}>
-                    <span className="mono" style={{ color: 'var(--ink-4)' }}>
-                      —
-                    </span>
-                  </td>
-                ))}
+                <td className="mono" style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
+                  {c.env || '—'}
+                </td>
+                <td className="mono tnum">{c.apps}</td>
+                <td
+                  className="mono tnum"
+                  style={{ color: c.ready > 0 ? 'var(--ok)' : 'var(--ink-3)' }}
+                >
+                  {c.ready}
+                </td>
+                <td
+                  className="mono tnum"
+                  style={{ color: c.failing > 0 ? 'var(--err)' : 'var(--ink-3)' }}
+                >
+                  {c.failing}
+                </td>
+                <td
+                  className="mono tnum"
+                  style={{ color: c.suspended > 0 ? 'var(--paused)' : 'var(--ink-3)' }}
+                >
+                  {c.suspended}
+                </td>
+                <td className="mono tnum">{c.sources}</td>
+                <td>
+                  <span className={`chip ${c.fluxInstalled ? 'ok' : 'warn'}`}>
+                    <span className="d" />
+                    {c.fluxInstalled ? 'ok' : 'missing'}
+                  </span>
+                </td>
                 <td style={{ width: 140 }}>
                   <div style={{ width: 110, height: 24 }}>
                     <Sparkline
@@ -243,19 +284,14 @@ function FleetMap({
     <div className="panel">
       <div className="panel-head">
         <div className="panel-title">
-          <span className="lab">View</span>Geo distribution
-        </div>
-        <div className="panel-actions">
-          <span className="mono" style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>
-            geo coordinates from Cluster CR · v0.2
-          </span>
+          <span className="lab">View</span>Compact pill list
         </div>
       </div>
       <div className="panel-body">
         <div
           className="fleet-map"
           style={{
-            height: 320,
+            minHeight: 120,
             display: 'flex',
             flexWrap: 'wrap',
             gap: 8,
