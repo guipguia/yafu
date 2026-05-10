@@ -8,6 +8,7 @@ export type PageId =
   | 'fleet'
   | 'apps'
   | 'sources'
+  | 'dependencies'
   | 'images'
   | 'alerts'
   | 'events'
@@ -50,6 +51,7 @@ export function Sidebar({ active, onNav, side, cluster, onClusterClick }: Props)
     },
     { id: 'apps', label: 'Applications', icon: Ic.app, count: apps.length || undefined },
     { id: 'sources', label: 'Sources', icon: Ic.source, section: 'Catalog' },
+    { id: 'dependencies', label: 'Dependencies', icon: Ic.graph },
     { id: 'images', label: 'Image Updates', icon: Ic.image },
     { id: 'alerts', label: 'Alerts', icon: Ic.alert },
     { id: 'events', label: 'Activity', icon: Ic.events, section: 'Operate' },

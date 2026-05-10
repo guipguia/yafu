@@ -146,6 +146,14 @@ export const Ic = {
       <path d="M8 1.5l1.6 4.4 4.4 1.6-4.4 1.6L8 13.5 6.4 9.1 2 7.5l4.4-1.6z" />
     </svg>
   ),
+  graph: (p: IconProps = {}) => (
+    <svg width="16" height="16" viewBox="0 0 16 16" {...stroke} {...p}>
+      <circle cx="3.5" cy="3.5" r="1.6" />
+      <circle cx="3.5" cy="12.5" r="1.6" />
+      <circle cx="12.5" cy="8" r="1.6" />
+      <path d="M5 4l5.7 3.4M5 12l5.7-3.4" />
+    </svg>
+  ),
   git: (p: IconProps = {}) => (
     <svg width="14" height="14" viewBox="0 0 16 16" {...stroke} {...p}>
       <circle cx="4" cy="4" r="1.6" />
