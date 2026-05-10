@@ -31,6 +31,21 @@ export function useWhoami() {
   })
 }
 
+// useVersion fetches the build metadata exposed by GET /api/v1/version.
+// The backend returns a free-form string map (version/commit/date today,
+// but the OpenAPI schema is `additionalProperties: string` so the shape
+// is intentionally extensible).
+export type VersionResponse = Record<string, string>
+
+export function useVersion() {
+  return useQuery<VersionResponse>({
+    queryKey: ['version'],
+    queryFn: () => fetchJSON<VersionResponse>('/api/v1/version'),
+    refetchInterval: false,
+    staleTime: 60_000,
+  })
+}
+
 export function useClusters() {
   return useQuery<ClustersResponse>({
     queryKey: ['clusters'],
