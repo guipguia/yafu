@@ -136,7 +136,7 @@ export default function App() {
       case 'images':
         return <ImagesPage />
       case 'mobile':
-        return <MobilePage />
+        return <MobilePage onOpen={setOpenApp} />
       case 'settings':
         return <SettingsPage />
     }

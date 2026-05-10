@@ -1,5 +1,5 @@
 import type { ComponentType, SVGProps } from 'react'
-import { useApplications } from '@/lib/queries'
+import { useApplications, useReconcileApp, useResumeApp, useSuspendApp } from '@/lib/queries'
 import type { Application } from '@/lib/types'
 import { Ic } from '@/components/Icons'
 
@@ -16,7 +16,11 @@ const TABS: Tab[] = [
   { label: 'Me', Icon: null },
 ]
 
-export function MobilePage() {
+interface Props {
+  onOpen: (app: Application) => void
+}
+
+export function MobilePage({ onOpen }: Props) {
   const { data, isLoading } = useApplications()
   const apps = data?.applications ?? []
   const incidents = apps.filter((a) => a.status === 'failing' || a.status === 'degraded')
@@ -92,7 +96,7 @@ export function MobilePage() {
           )}
 
           {incidents.map((i) => (
-            <IncidentCard key={i.id} app={i} />
+            <IncidentCard key={i.id} app={i} onOpen={onOpen} />
           ))}
         </div>
         <div
@@ -135,15 +139,24 @@ export function MobilePage() {
           ))}
         </div>
       </div>
-      <div className="mono" style={{ fontSize: 11, color: 'var(--ink-3)' }}>
-        live data · actions land in v0.2
-      </div>
     </div>
   )
 }
 
-function IncidentCard({ app }: { app: Application }) {
+function IncidentCard({ app, onOpen }: { app: Application; onOpen: (app: Application) => void }) {
   const tone: 'err' | 'warn' = app.status === 'failing' ? 'err' : 'warn'
+  const reconcile = useReconcileApp()
+  const suspend = useSuspendApp()
+  const resume = useResumeApp()
+  const busy =
+    (reconcile.isPending && reconcile.variables?.id === app.id) ||
+    (suspend.isPending && suspend.variables?.id === app.id) ||
+    (resume.isPending && resume.variables?.id === app.id)
+  const lastError =
+    (reconcile.error && reconcile.variables?.id === app.id ? reconcile.error : null) ||
+    (suspend.error && suspend.variables?.id === app.id ? suspend.error : null) ||
+    (resume.error && resume.variables?.id === app.id ? resume.error : null)
+
   return (
     <div style={{ padding: 16, borderBottom: '1px solid var(--line)' }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
@@ -184,18 +197,59 @@ function IncidentCard({ app }: { app: Application }) {
           {app.message}
         </p>
       )}
+      {lastError && (
+        <p
+          className="mono"
+          role="alert"
+          style={{
+            fontSize: 11,
+            color: 'var(--err)',
+            marginTop: 8,
+            padding: '6px 10px',
+            background: 'var(--err-soft)',
+            border: '1px solid var(--err)',
+            borderRadius: 4,
+          }}
+        >
+          {lastError.message}
+        </p>
+      )}
       <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-        <button className="btn" style={{ flex: 1, justifyContent: 'center' }} disabled title="v0.2">
-          Reconcile
+        <button
+          className="btn"
+          style={{ flex: 1, justifyContent: 'center' }}
+          disabled={busy}
+          onClick={() => reconcile.mutate(app)}
+          title="Trigger reconcile"
+        >
+          {reconcile.isPending && reconcile.variables?.id === app.id ? 'Reconciling…' : 'Reconcile'}
         </button>
-        <button className="btn" style={{ flex: 1, justifyContent: 'center' }} disabled title="v0.2">
-          Suspend
-        </button>
+        {app.suspended ? (
+          <button
+            className="btn"
+            style={{ flex: 1, justifyContent: 'center' }}
+            disabled={busy}
+            onClick={() => resume.mutate(app)}
+            title="Resume reconciliation"
+          >
+            {resume.isPending && resume.variables?.id === app.id ? 'Resuming…' : 'Resume'}
+          </button>
+        ) : (
+          <button
+            className="btn"
+            style={{ flex: 1, justifyContent: 'center' }}
+            disabled={busy}
+            onClick={() => suspend.mutate(app)}
+            title="Suspend reconciliation"
+          >
+            {suspend.isPending && suspend.variables?.id === app.id ? 'Suspending…' : 'Suspend'}
+          </button>
+        )}
         <button
           className="btn primary"
           style={{ flex: 1, justifyContent: 'center' }}
-          disabled
-          title="v0.2"
+          onClick={() => onOpen(app)}
+          title="Open details"
         >
           Open
         </button>
