@@ -14,13 +14,13 @@ import { ImagesPage } from '@/pages/Images'
 import { MobilePage } from '@/pages/Mobile'
 import { SettingsPage } from '@/pages/Settings'
 
-type Theme = 'light' | 'dark'
-type Density = 'compact' | 'comfortable'
-type SidebarMode = 'labeled' | 'icons' | 'collapsed'
+export type Theme = 'light' | 'dark'
+export type Density = 'compact' | 'comfortable'
+export type SidebarMode = 'labeled' | 'icons' | 'collapsed'
 
 const STORAGE_KEY = 'yafu.prefs.v1'
 
-interface Prefs {
+export interface Prefs {
   theme: Theme
   density: Density
   sidebar: SidebarMode
@@ -138,7 +138,16 @@ export default function App() {
       case 'mobile':
         return <MobilePage />
       case 'settings':
-        return <SettingsPage />
+        return (
+          <SettingsPage
+            theme={prefs.theme}
+            density={prefs.density}
+            sidebar={prefs.sidebar}
+            onThemeChange={(v) => update('theme', v)}
+            onDensityChange={(v) => update('density', v)}
+            onSidebarChange={(v) => update('sidebar', v)}
+          />
+        )
     }
   }
 
