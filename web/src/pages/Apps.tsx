@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   useApplications,
   useClusters,
+  useReconcileAllApps,
   useReconcileApp,
   useResumeApp,
   useSuspendApp,
@@ -29,21 +30,70 @@ export function AppsPage({ onOpen }: Props) {
   const reconcile = useReconcileApp()
   const suspend = useSuspendApp()
   const resume = useResumeApp()
+  const reconcileMany = useReconcileAllApps()
   const [filter, setFilter] = useState<FilterState>({ status: 'all', kind: 'all', cluster: 'all' })
   const [q, setQ] = useState('')
+  const [selected, setSelected] = useState<Set<string>>(new Set())
 
-  const apps = data?.applications ?? []
+  // Memoize `apps` against the TanStack Query field directly so the
+  // `?? []` fallback doesn't produce a fresh reference each render —
+  // otherwise downstream `useMemo` deps churn for free.
+  const apps = useMemo(() => data?.applications ?? [], [data?.applications])
   const clusters = clustersData?.clusters ?? []
   const fanoutErrors = data?.errors ?? []
-  const lastError = reconcile.error || suspend.error || resume.error
+  const lastError = reconcile.error || suspend.error || resume.error || reconcileMany.error
 
-  const filtered = apps.filter((a) => {
-    if (filter.status !== 'all' && a.status !== filter.status) return false
-    if (filter.kind !== 'all' && a.kind !== filter.kind) return false
-    if (filter.cluster !== 'all' && a.clusterId !== filter.cluster) return false
-    if (q && !`${a.name} ${a.ns} ${a.cluster}`.toLowerCase().includes(q.toLowerCase())) return false
-    return true
-  })
+  const filtered = useMemo(
+    () =>
+      apps.filter((a) => {
+        if (filter.status !== 'all' && a.status !== filter.status) return false
+        if (filter.kind !== 'all' && a.kind !== filter.kind) return false
+        if (filter.cluster !== 'all' && a.clusterId !== filter.cluster) return false
+        if (q && !`${a.name} ${a.ns} ${a.cluster}`.toLowerCase().includes(q.toLowerCase())) {
+          return false
+        }
+        return true
+      }),
+    [apps, filter, q],
+  )
+
+  // Selection refers to ids in the *filtered* view — when filters narrow the
+  // list, items hidden from the user stop counting as selected.
+  const visibleSelected = useMemo(
+    () => filtered.filter((a) => selected.has(a.id)),
+    [filtered, selected],
+  )
+  const allVisibleSelected = filtered.length > 0 && visibleSelected.length === filtered.length
+  const someVisibleSelected = visibleSelected.length > 0 && !allVisibleSelected
+
+  const toggleOne = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+
+  const toggleAll = () =>
+    setSelected((prev) => {
+      if (allVisibleSelected) {
+        // Clear only the currently-visible rows so a narrower filter
+        // doesn't wipe selections in clusters the user can't see.
+        const next = new Set(prev)
+        for (const a of filtered) next.delete(a.id)
+        return next
+      }
+      const next = new Set(prev)
+      for (const a of filtered) next.add(a.id)
+      return next
+    })
+
+  const onReconcileSelected = () => {
+    if (visibleSelected.length === 0) return
+    reconcileMany.mutate(visibleSelected, {
+      onSuccess: () => setSelected(new Set()),
+    })
+  }
 
   const fail = apps.filter((a) => a.status === 'failing').length
   const susp = apps.filter((a) => a.suspended).length
@@ -80,10 +130,23 @@ export function AppsPage({ onOpen }: Props) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
-          <button className="btn">
-            <Ic.refresh /> Reconcile selected
+          <button
+            className="btn primary"
+            onClick={onReconcileSelected}
+            disabled={visibleSelected.length === 0 || reconcileMany.isPending}
+            title={
+              visibleSelected.length === 0
+                ? 'Select one or more rows to reconcile'
+                : `Reconcile ${visibleSelected.length} selected`
+            }
+          >
+            <Ic.refresh />
+            {reconcileMany.isPending
+              ? 'Reconciling…'
+              : visibleSelected.length > 0
+                ? `Reconcile ${visibleSelected.length}`
+                : 'Reconcile selected'}
           </button>
-          <button className="btn primary">+ New</button>
         </div>
       </div>
 
@@ -172,6 +235,17 @@ export function AppsPage({ onOpen }: Props) {
           <table className="tbl">
             <thead>
               <tr>
+                <th style={{ width: 32 }}>
+                  <input
+                    type="checkbox"
+                    aria-label={allVisibleSelected ? 'Deselect all rows' : 'Select all rows'}
+                    checked={allVisibleSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = someVisibleSelected
+                    }}
+                    onChange={toggleAll}
+                  />
+                </th>
                 <th style={{ width: 36 }} />
                 <th>Name</th>
                 <th>Kind</th>
@@ -191,6 +265,7 @@ export function AppsPage({ onOpen }: Props) {
                   tabIndex={0}
                   role="button"
                   aria-label={`Open ${a.kind} ${a.name} in ${a.cluster}`}
+                  className={selected.has(a.id) ? 'selected' : undefined}
                   onKeyDown={(e) => {
                     // Only fire when the row itself has focus, so Enter on
                     // the inner ⋯ button doesn't also open the drawer.
@@ -200,6 +275,14 @@ export function AppsPage({ onOpen }: Props) {
                     }
                   }}
                 >
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${a.name}`}
+                      checked={selected.has(a.id)}
+                      onChange={() => toggleOne(a.id)}
+                    />
+                  </td>
                   <td>
                     <span
                       className="row-status"
