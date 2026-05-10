@@ -164,6 +164,8 @@ export default function App() {
           crumbs={crumbs[prefs.page]}
           theme={prefs.theme}
           onToggleTheme={() => update('theme', prefs.theme === 'dark' ? 'light' : 'dark')}
+          onNavigate={(id) => update('page', id)}
+          onOpenApp={setOpenApp}
         />
         <div className="content">{renderPage()}</div>
       </div>
