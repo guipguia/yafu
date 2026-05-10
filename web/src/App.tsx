@@ -7,6 +7,7 @@ import { Topbar } from '@/components/Topbar'
 import { FleetPage, type FleetLayout } from '@/pages/Fleet'
 import { AppsPage } from '@/pages/Apps'
 import { AppDetailDrawer } from '@/pages/AppDetail'
+import { DependenciesPage } from '@/pages/Dependencies'
 import { SourcesPage } from '@/pages/Sources'
 import { AlertsPage } from '@/pages/Alerts'
 import { ActivityPage } from '@/pages/Activity'
@@ -104,6 +105,7 @@ export default function App() {
     fleet: ['flux', 'Fleet'],
     apps: ['flux', cluster?.name ?? 'all', 'Applications'],
     sources: ['flux', cluster?.name ?? 'all', 'Sources'],
+    dependencies: ['flux', 'Dependencies'],
     alerts: ['flux', cluster?.name ?? 'all', 'Alerts'],
     events: ['flux', 'Activity'],
     images: ['flux', 'Image Updates'],
@@ -129,6 +131,8 @@ export default function App() {
         return <AppsPage onOpen={setOpenApp} />
       case 'sources':
         return <SourcesPage />
+      case 'dependencies':
+        return <DependenciesPage onOpenApp={setOpenApp} />
       case 'alerts':
         return <AlertsPage />
       case 'events':
