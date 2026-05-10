@@ -28,7 +28,7 @@ jobs:
         # "language version (1.25) is lower than targeted (1.26)".
         # Pin to the latest 2.12 so a future linter regression
         # doesn't silently change behaviour.
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v9
         with:
           version: v2.12.1
           args: --timeout=5m
