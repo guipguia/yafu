@@ -15,7 +15,7 @@ jobs:
     name: Build and push container image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Compute build metadata
         id: meta
@@ -57,7 +57,7 @@ jobs:
     name: Package and push Helm chart (OCI)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Compute version
         id: meta
